@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- NuGet package metadata -->
+    <PackageId>BPlusTree.Core</PackageId>
+    <Version>1.10.0</Version>
+    <Authors>Branimir Bajt</Authors>
+    <Description>A disk-based, persistent B+ tree for .NET 8. Provides a sorted key-value store with WAL-based durability, ACID transactions, snapshot isolation, online compaction, and concurrent multi-writer support. Keys and values are fully generic with custom serializer support.</Description>
+    <PackageTags>bplustree;btree;sorted;key-value;kv-store;database;wal;transactions;persistent;storage</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/bbajt/persistent-bplus-tree</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/bbajt/persistent-bplus-tree</PackageProjectUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.IO.Hashing" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>BPlusTree.UnitTests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>
