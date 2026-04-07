@@ -1,11 +1,15 @@
 # BPlusTree.Core
 
-A disk-based, persistent B+ tree for .NET 8 — a sorted key-value store with
+A disk-based, persistent B+ tree for .NET 10 — a sorted key-value store with
 WAL-based durability, ACID transactions, snapshot isolation, online compaction,
 and concurrent multi-writer support.
 
-[![NuGet](https://img.shields.io/nuget/v/BPlusTree.Core.svg)](https://www.nuget.org/packages/BPlusTree.Core)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![NuGet](https://img.shields.io/nuget/v/BPlusTree.Core.svg?label=nuget&color=blue)](https://www.nuget.org/packages/BPlusTree.Core)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/BPlusTree.Core.svg?color=blue)](https://www.nuget.org/packages/BPlusTree.Core)
+[![.NET](https://img.shields.io/badge/.NET-10-512BD4)](#)
+[![C%23](https://img.shields.io/badge/C%23-13-239120)](#)
+[![Tests](https://img.shields.io/badge/tests-653-brightgreen)](#)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 **The only .NET library combining a disk-based B+ tree with WAL-based durability, ACID transactions, and snapshot isolation.**
 Existing alternatives ([CSharpTest.Net.BPlusTree](https://github.com/csharptest/CSharpTest.Net.Collections), [DataTanker](https://github.com/VictorScherbakov/DataTanker)) are either abandoned or lack transactions and WAL entirely.

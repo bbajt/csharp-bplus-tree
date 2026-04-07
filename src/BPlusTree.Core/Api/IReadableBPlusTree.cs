@@ -29,7 +29,7 @@ namespace BPlusTree.Core.Api;
 /// </remarks>
 public interface IReadableBPlusTree<TKey, TValue>
     : IEnumerable<(TKey Key, TValue Value)>
-    where TKey : IComparable<TKey>
+    where TKey : notnull
 {
     /// <summary>
     /// Searches for <paramref name="key"/>. Returns <c>true</c> and sets

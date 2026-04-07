@@ -1,5 +1,6 @@
 namespace BPlusTree.Core.Api;
 
+/// <summary>Configuration options for opening a BPlusTree. Call Validate() before use.</summary>
 public sealed class BPlusTreeOptions
 {
     // ── WAL sync mode ─────────────────────────────────────────────────────────
@@ -128,6 +129,26 @@ public sealed class BPlusTreeOptions
     public int MaxSafeCheckpointThreshold =>
         PageSize > 0 ? WalBufferSize / PageSize : 0;
 
+    // ── Callbacks ──────────────────────────────────────────────────────────────
+    /// <summary>
+    /// Optional callback invoked when <see cref="BPlusTree{TKey,TValue}.Open"/> detects
+    /// a condition that may degrade durability or performance.
+    /// Set before calling <c>Open()</c>.
+    /// </summary>
+    public Action<string>? OnWarning { get; set; }
+
+    /// <summary>
+    /// Optional callback invoked immediately before a compaction begins.
+    /// The argument is the data file path being compacted.
+    /// </summary>
+    public Action<string>? OnCompactionStarted { get; set; }
+
+    /// <summary>
+    /// Optional callback invoked immediately after a compaction completes.
+    /// The first argument is the data file path; the second is the compaction outcome.
+    /// </summary>
+    public Action<string, CompactionResult>? OnCompactionCompleted { get; set; }
+
     // ── Tree behaviour ────────────────────────────────────────────────────────
     /// <summary>Target fill factor for new pages (0.50 – 0.95).</summary>
     public double FillFactor { get; set; } = BPlusTreeDefaults.FillFactor;
@@ -143,6 +164,16 @@ public sealed class BPlusTreeOptions
 
         if (string.IsNullOrWhiteSpace(WalFilePath))
             throw new ArgumentException("WAL file path must not be null or empty.", nameof(WalFilePath));
+
+        if (string.Equals(Path.GetFullPath(DataFilePath), Path.GetFullPath(WalFilePath), StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException(
+                "DataFilePath and WalFilePath must not resolve to the same file.",
+                nameof(WalFilePath));
+
+        if (!Enum.IsDefined(SyncMode))
+            throw new ArgumentException(
+                $"SyncMode value {(int)SyncMode} is not a valid WalSyncMode.",
+                nameof(SyncMode));
 
         if (!IsPowerOfTwo(PageSize) || PageSize < 4096 || PageSize > 65536)
             throw new ArgumentException("Page size must be a power of 2 between 4096 and 65536 bytes.", nameof(PageSize));

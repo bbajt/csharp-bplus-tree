@@ -1,5 +1,6 @@
 namespace BPlusTree.Core.Api;
 
+/// <summary>Read-only snapshot of tree metrics returned by GetStatistics().</summary>
 public readonly struct TreeStatistics
 {
     public int    TotalPages                  { get; init; }

@@ -26,6 +26,7 @@ internal struct WriteLatchHandle : IDisposable
 
     public WriteLatchHandle(ReaderWriterLockSlim rwl) => _rwl = rwl;
 
+    /// <inheritdoc />
     public void Dispose()
     {
         if (!_disposed) { _disposed = true; _rwl.ExitWriteLock(); }

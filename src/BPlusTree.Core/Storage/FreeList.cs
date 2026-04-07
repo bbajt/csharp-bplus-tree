@@ -9,7 +9,7 @@ namespace BPlusTree.Core.Storage;
 /// Head is stored in the meta page at PageLayout.MetaFreeListHeadOffset.
 /// Thread-safe via the provided PageManager lock (callers hold the lock).
 /// </summary>
-public sealed class FreeList
+internal sealed class FreeList
 {
     private readonly PageManager _pageManager;
 

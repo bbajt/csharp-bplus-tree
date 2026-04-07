@@ -22,7 +22,7 @@ namespace BPlusTree.Core.Engine;
 /// (stackalloc) to eliminate per-traversal heap allocations. ReleaseAll and CrabWriteDown
 /// accept the span + a ref count instead of IList&lt;IDisposable&gt;.
 /// </summary>
-public sealed class LatchCoupling
+internal sealed class LatchCoupling
 {
     /// <summary>
     /// Maximum B+ tree height for any practical key count and page size.

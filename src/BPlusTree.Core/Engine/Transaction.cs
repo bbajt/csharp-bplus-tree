@@ -29,7 +29,7 @@ namespace BPlusTree.Core.Engine;
 /// serialising CoW write paths.
 /// </summary>
 internal sealed class Transaction<TKey, TValue> : ITransaction<TKey, TValue>, ITransactionContext
-    where TKey : IComparable<TKey>
+    where TKey : notnull
 {
     private readonly TreeEngine<TKey, TValue> _engine;
     private readonly WalWriter                _walWriter;
@@ -249,6 +249,7 @@ internal sealed class Transaction<TKey, TValue> : ITransaction<TKey, TValue>, IT
 
     // ── ITransaction<TKey,TValue> ────────────────────────────────────────────
 
+    /// <inheritdoc />
     public void Insert(TKey key, TValue value)
     {
         ThrowIfDisposedOrCommitted();
@@ -256,6 +257,7 @@ internal sealed class Transaction<TKey, TValue> : ITransaction<TKey, TValue>, IT
         _deltaKeys?.Add((key, value, DeltaOp.Insert));
     }
 
+    /// <inheritdoc />
     public bool TryUpdate(TKey key, TValue newValue)
     {
         ThrowIfDisposedOrCommitted();
@@ -264,6 +266,7 @@ internal sealed class Transaction<TKey, TValue> : ITransaction<TKey, TValue>, IT
         return result;
     }
 
+    /// <inheritdoc />
     public bool TryUpdate(TKey key, Func<TValue, TValue> updateFactory)
     {
         ThrowIfDisposedOrCommitted();
@@ -277,6 +280,7 @@ internal sealed class Transaction<TKey, TValue> : ITransaction<TKey, TValue>, IT
         return result;
     }
 
+    /// <inheritdoc />
     public bool TryDelete(TKey key)
     {
         ThrowIfDisposedOrCommitted();
@@ -285,6 +289,7 @@ internal sealed class Transaction<TKey, TValue> : ITransaction<TKey, TValue>, IT
         return result;
     }
 
+    /// <inheritdoc />
     public bool TryInsert(TKey key, TValue value)
     {
         ThrowIfDisposedOrCommitted();
@@ -293,6 +298,7 @@ internal sealed class Transaction<TKey, TValue> : ITransaction<TKey, TValue>, IT
         return result;
     }
 
+    /// <inheritdoc />
     public TValue AddOrUpdate(TKey key, TValue addValue, Func<TKey, TValue, TValue> updateValueFactory)
     {
         ThrowIfDisposedOrCommitted();
@@ -301,6 +307,7 @@ internal sealed class Transaction<TKey, TValue> : ITransaction<TKey, TValue>, IT
         return result;
     }
 
+    /// <inheritdoc />
     public TValue GetOrAdd(TKey key, TValue addValue)
     {
         ThrowIfDisposedOrCommitted();
@@ -309,6 +316,7 @@ internal sealed class Transaction<TKey, TValue> : ITransaction<TKey, TValue>, IT
         return result;
     }
 
+    /// <inheritdoc />
     public bool TryGetAndDelete(TKey key, out TValue value)
     {
         ThrowIfDisposedOrCommitted();
@@ -317,6 +325,7 @@ internal sealed class Transaction<TKey, TValue> : ITransaction<TKey, TValue>, IT
         return result;
     }
 
+    /// <inheritdoc />
     public bool TryCompareAndSwap(TKey key, TValue expected, TValue newValue, IEqualityComparer<TValue>? comparer = null)
     {
         ThrowIfDisposedOrCommitted();
@@ -334,36 +343,42 @@ internal sealed class Transaction<TKey, TValue> : ITransaction<TKey, TValue>, IT
         }
     }
 
+    /// <inheritdoc />
     public bool TryGet(TKey key, out TValue value)
     {
         ThrowIfDisposedOrCommitted();
         return _engine.TryGetInTransaction(key, this, out value);
     }
 
+    /// <inheritdoc />
     public bool ContainsKey(TKey key)
     {
         ThrowIfDisposedOrCommitted();
         return _engine.TryGetInTransaction(key, this, out _);
     }
 
+    /// <inheritdoc />
     public bool TryGetFirst(out TKey key, out TValue value)
     {
         ThrowIfDisposedOrCommitted();
         return _engine.TryGetFirstInTransaction(this, out key, out value);
     }
 
+    /// <inheritdoc />
     public bool TryGetLast(out TKey key, out TValue value)
     {
         ThrowIfDisposedOrCommitted();
         return _engine.TryGetLastInTransaction(this, out key, out value);
     }
 
+    /// <inheritdoc />
     public bool TryGetNext(TKey key, out TKey nextKey, out TValue value)
     {
         ThrowIfDisposedOrCommitted();
         return _engine.TryGetNextInTransaction(key, this, out nextKey, out value);
     }
 
+    /// <inheritdoc />
     public bool TryGetPrev(TKey key, out TKey prevKey, out TValue value)
     {
         ThrowIfDisposedOrCommitted();
@@ -386,6 +401,7 @@ internal sealed class Transaction<TKey, TValue> : ITransaction<TKey, TValue>, IT
         return _engine.ScanReverseInTransaction(endKey, startKey, this);
     }
 
+    /// <inheritdoc />
     public int DeleteRange(TKey startKey, TKey endKey)
     {
         ThrowIfDisposedOrCommitted();
@@ -400,12 +416,14 @@ internal sealed class Transaction<TKey, TValue> : ITransaction<TKey, TValue>, IT
         return _engine.DeleteRangeInTransaction(startKey, endKey, this);
     }
 
+    /// <inheritdoc />
     public long CountRange(TKey startKey, TKey endKey)
     {
         ThrowIfDisposedOrCommitted();
         return _engine.CountRangeInTransaction(startKey, endKey, this);
     }
 
+    /// <inheritdoc />
     public void Commit()
     {
         ThrowIfDisposedOrCommitted();
@@ -469,6 +487,7 @@ internal sealed class Transaction<TKey, TValue> : ITransaction<TKey, TValue>, IT
         _coordinator.ExitTransactionLock();
     }
 
+    /// <inheritdoc />
     public Task CommitAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposedOrCommitted();
@@ -525,6 +544,7 @@ internal sealed class Transaction<TKey, TValue> : ITransaction<TKey, TValue>, IT
         return fsyncTask;
     }
 
+    /// <inheritdoc />
     public void InsertRange(IEnumerable<(TKey Key, TValue Value)> items)
     {
         ThrowIfDisposedOrCommitted();
@@ -532,6 +552,7 @@ internal sealed class Transaction<TKey, TValue> : ITransaction<TKey, TValue>, IT
             Insert(key, value);
     }
 
+    /// <inheritdoc />
     public void InsertRange(IEnumerable<KeyValuePair<TKey, TValue>> items)
     {
         ThrowIfDisposedOrCommitted();
@@ -544,6 +565,7 @@ internal sealed class Transaction<TKey, TValue> : ITransaction<TKey, TValue>, IT
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
+    /// <inheritdoc />
     public void Dispose()
     {
         if (_disposed) return;

@@ -8,7 +8,7 @@ namespace BPlusTree.Core.Storage;
 /// Must remain a ref struct — allocation on the heap is forbidden.
 /// All integers stored big-endian (preserves sort order for byte-wise comparison).
 /// </summary>
-public ref struct NodePage
+internal ref struct NodePage
 {
     private readonly Span<byte> _data;
 

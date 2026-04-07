@@ -6,7 +6,7 @@ namespace BPlusTree.Core.Api;
 /// Disposing without calling <see cref="Commit"/> rolls back all operations.
 /// </summary>
 public interface ITransaction<TKey, TValue> : IReadableBPlusTree<TKey, TValue>, IDisposable
-    where TKey : IComparable<TKey>
+    where TKey : notnull
 {
     /// <summary>Stable identifier for this transaction, written into WAL records.</summary>
     uint TransactionId { get; }

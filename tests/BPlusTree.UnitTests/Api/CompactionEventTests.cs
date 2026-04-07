@@ -10,16 +10,21 @@ public class CompactionEventTests : IDisposable
     private readonly string _dbPath  = Path.GetTempFileName();
     private readonly string _walPath = Path.GetTempFileName();
 
-    private BPlusTree<int, int> Open() => BPlusTree<int, int>.Open(
-        new BPlusTreeOptions
-        {
-            DataFilePath        = _dbPath,
-            WalFilePath         = _walPath,
-            PageSize            = 8192,
-            BufferPoolCapacity  = 512,
-            CheckpointThreshold = 64,
-        },
-        Int32Serializer.Instance, Int32Serializer.Instance);
+    private BPlusTree<int, int> Open(
+        Action<string>? onStarted = null,
+        Action<string, CompactionResult>? onCompleted = null)
+        => BPlusTree<int, int>.Open(
+            new BPlusTreeOptions
+            {
+                DataFilePath           = _dbPath,
+                WalFilePath            = _walPath,
+                PageSize               = 8192,
+                BufferPoolCapacity     = 512,
+                CheckpointThreshold    = 64,
+                OnCompactionStarted    = onStarted,
+                OnCompactionCompleted  = onCompleted,
+            },
+            Int32Serializer.Instance, Int32Serializer.Instance);
 
     public void Dispose()
     {
@@ -29,51 +34,32 @@ public class CompactionEventTests : IDisposable
     }
 
     [Fact]
-    public void Compact_Fires_CompactionStarted_Event()
+    public void Compact_Fires_OnCompactionStarted()
     {
-        using var tree = Open();
+        var firedPaths = new List<string>();
+        using var tree = Open(onStarted: path => firedPaths.Add(path));
         for (int i = 0; i < 50; i++) tree.Put(i, i);
 
-        var firedPaths = new List<string>();
-        Action<string> handler = path => firedPaths.Add(path);
-        BPlusTree<int, int>.CompactionStarted += handler;
-        try
-        {
-            tree.Compact();
-        }
-        finally
-        {
-            BPlusTree<int, int>.CompactionStarted -= handler;
-        }
+        tree.Compact();
 
-        // At least one CompactionStarted fired for our specific data file.
         firedPaths.Should().Contain(_dbPath,
-            "CompactionStarted must fire with the data file path before compaction begins");
+            "OnCompactionStarted must fire with the data file path before compaction begins");
     }
 
     [Fact]
-    public void Compact_Fires_CompactionCompleted_WithResult()
+    public void Compact_Fires_OnCompactionCompleted_WithResult()
     {
-        using var tree = Open();
+        CompactionResult? captured = null;
+        using var tree = Open(onCompleted: (path, result) =>
+        {
+            if (path == _dbPath) captured = result;
+        });
         for (int i = 0; i < 50; i++) tree.Put(i, i);
         for (int i = 0; i < 25; i++) tree.Delete(i);
 
-        CompactionResult? captured = null;
-        Action<string, CompactionResult> handler = (path, result) =>
-        {
-            if (path == _dbPath) captured = result;
-        };
-        BPlusTree<int, int>.CompactionCompleted += handler;
-        try
-        {
-            tree.Compact();
-        }
-        finally
-        {
-            BPlusTree<int, int>.CompactionCompleted -= handler;
-        }
+        tree.Compact();
 
-        captured.Should().NotBeNull("CompactionCompleted must fire for our data file");
+        captured.Should().NotBeNull("OnCompactionCompleted must fire for our data file");
         captured!.Value.Duration.Should().BeGreaterThanOrEqualTo(TimeSpan.Zero,
             "duration must be non-negative");
         captured!.Value.PagesFreed.Should().BeGreaterThanOrEqualTo(0,

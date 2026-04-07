@@ -36,8 +36,8 @@ namespace BPlusTree.Core.Engine;
 /// The Compact() call is synchronous and blocking. Writes are blocked by the writer mutex
 /// for the full duration. TryGet (reads) remain unblocked — they do not acquire either lock.
 /// </summary>
-public sealed class Compactor<TKey, TValue>
-    where TKey : IComparable<TKey>
+internal sealed class Compactor<TKey, TValue>
+    where TKey : notnull
 {
     private readonly PageManager                  _pageManager;
     private readonly NodeSerializer<TKey, TValue> _nodeSerializer;
@@ -150,6 +150,7 @@ public sealed class Compactor<TKey, TValue>
             PageSize            = _options.PageSize,
             BufferPoolCapacity  = _options.BufferPoolCapacity,
             CheckpointThreshold = _options.CheckpointThreshold,
+            FillFactor          = _options.FillFactor,
         };
         var compactWal = WalWriter.Open(compactWalPath, bufferSize: _options.WalBufferSize);
         compactMgr     = PageManager.Open(compactOptions, compactWal);

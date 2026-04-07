@@ -4,7 +4,7 @@ namespace BPlusTree.Core.Storage;
 /// All byte offsets, sizes, and magic numbers for on-disk page layout.
 /// Every value is a compile-time constant. No other file may hardcode these values.
 /// </summary>
-public static class PageLayout
+internal static class PageLayout
 {
     // ── Magic & Version ──────────────────────────────────────────────────────
     public const uint MagicNumber       = 0xB17EEF00;
@@ -107,12 +107,14 @@ public static class PageLayout
     // MaxKeySize: key must fit in an internal-node cell (key + 4-byte child pointer).
     // Capped at 512 to guarantee internal pages hold ≥ 8 separator keys (fan-out).
     // Formula: min(512, (pageSize - FirstSlotOffset) / 4 - sizeof(uint))
+    /// <summary>Maximum key size in bytes for the given page size (capped at 512).</summary>
     public static int MaxKeySize(int pageSize) =>
         Math.Min(512, (pageSize - FirstSlotOffset) / 4 - sizeof(uint));
 
     // MaxEntrySize: key+value must fit on an otherwise-empty leaf, leaving room for
     // the split invariant (both halves non-empty after every split).
     // Formula: (pageSize - FirstSlotOffset) / 2 - SlotEntrySize
+    /// <summary>Maximum inline entry size (key + value) for the given page size.</summary>
     public static int MaxEntrySize(int pageSize) =>
         (pageSize - FirstSlotOffset) / 2 - SlotEntrySize;
 }

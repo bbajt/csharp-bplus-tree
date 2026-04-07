@@ -15,7 +15,7 @@ namespace BPlusTree.Core.Engine;
 /// <see cref="AcquirePageWriteLock"/> throws <see cref="TransactionConflictException"/>
 /// immediately. There is no waiting or deadlock detection — callers must abort and retry.
 /// </summary>
-internal sealed class TransactionCoordinator
+internal sealed class TransactionCoordinator : IDisposable
 {
     private uint _nextTxId = 1;
 
@@ -461,5 +461,13 @@ internal sealed class TransactionCoordinator
         foreach (var kvp in _ssiRetireLog)
             if (kvp.Value < threshold)
                 _ssiRetireLog.TryRemove(kvp.Key, out _);
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        _commitMutex.Dispose();
+        _txWriterDepth.Dispose();
+        _checkpointLock.Dispose();
     }
 }

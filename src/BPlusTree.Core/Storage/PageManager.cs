@@ -9,7 +9,7 @@ namespace BPlusTree.Core.Storage;
 /// Central coordinator for all page I/O. Owns StorageFile, BufferPool, and FreeList.
 /// All public methods are thread-safe.
 /// </summary>
-public sealed class PageManager : IDisposable
+internal sealed class PageManager : IDisposable
 {
     private readonly StorageFile  _storage;
     private readonly BufferPool   _pool;
@@ -613,6 +613,7 @@ public sealed class PageManager : IDisposable
         }
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
         if (!_disposed)

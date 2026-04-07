@@ -18,7 +18,7 @@ namespace BPlusTree.Core.Engine;
 /// a ≤ retire-epoch token.
 /// </summary>
 internal sealed class Snapshot<TKey, TValue> : ISnapshot<TKey, TValue>
-    where TKey : IComparable<TKey>
+    where TKey : notnull
 {
     private readonly TreeEngine<TKey, TValue> _engine;
     private readonly TransactionCoordinator   _coordinator;
@@ -54,36 +54,42 @@ internal sealed class Snapshot<TKey, TValue> : ISnapshot<TKey, TValue>
         get { ThrowIfDisposed(); return _snapshotRecordCount; }
     }
 
+    /// <inheritdoc />
     public bool TryGet(TKey key, out TValue value)
     {
         ThrowIfDisposed();
         return _engine.TryGetFromSnapshot(key, _snapshotRootId, out value);
     }
 
+    /// <inheritdoc />
     public bool ContainsKey(TKey key)
     {
         ThrowIfDisposed();
         return _engine.TryGetFromSnapshot(key, _snapshotRootId, out _);
     }
 
+    /// <inheritdoc />
     public bool TryGetFirst(out TKey key, out TValue value)
     {
         ThrowIfDisposed();
         return _engine.TryGetFirstFromSnapshot(_snapshotFirstLeafId, out key, out value);
     }
 
+    /// <inheritdoc />
     public bool TryGetLast(out TKey key, out TValue value)
     {
         ThrowIfDisposed();
         return _engine.TryGetLastFromSnapshot(_snapshotRootId, out key, out value);
     }
 
+    /// <inheritdoc />
     public bool TryGetNext(TKey key, out TKey nextKey, out TValue value)
     {
         ThrowIfDisposed();
         return _engine.TryGetNextFromSnapshot(key, _snapshotRootId, out nextKey, out value);
     }
 
+    /// <inheritdoc />
     public bool TryGetPrev(TKey key, out TKey prevKey, out TValue value)
     {
         ThrowIfDisposed();
@@ -106,6 +112,7 @@ internal sealed class Snapshot<TKey, TValue> : ISnapshot<TKey, TValue>
         return _engine.ScanReverseFromSnapshot(endKey, startKey, _snapshotRootId);
     }
 
+    /// <inheritdoc />
     public long CountRange(TKey startKey, TKey endKey)
     {
         ThrowIfDisposed();
@@ -145,6 +152,7 @@ internal sealed class Snapshot<TKey, TValue> : ISnapshot<TKey, TValue>
             .Select(p => new KeyValuePair<TKey, TValue>(p.Key, p.Value))
             .GetEnumerator();
 
+    /// <inheritdoc />
     public void Dispose()
     {
         if (_disposed) return;

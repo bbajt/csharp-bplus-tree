@@ -10,7 +10,7 @@ namespace BPlusTree.Core.Nodes;
 /// Keys are stored in big-endian serialized form (sort order preserved for binary search).
 /// Cell layout (per slot): [serialized key (keyLen bytes)][serialized value (valLen bytes)]
 /// </summary>
-public struct LeafNode<TKey, TValue>
+internal struct LeafNode<TKey, TValue>
     where TKey : notnull
 {
     private readonly Frame                    _frame;

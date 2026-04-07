@@ -1,3 +1,4 @@
+using BPlusTree.Core.Api;
 using BPlusTree.Core.Nodes;
 using BPlusTree.Core.Storage;
 
@@ -9,7 +10,7 @@ namespace BPlusTree.Core.Engine;
 /// ascending order. Additional invariants (separator alignment, sibling back-links)
 /// can be added in later phases.
 /// </summary>
-public sealed class TreeValidator<TKey, TValue>
+internal sealed class TreeValidator<TKey, TValue>
     where TKey : notnull
 {
     private readonly PageManager                  _pageManager;
@@ -26,6 +27,7 @@ public sealed class TreeValidator<TKey, TValue>
         _metadata       = metadata;
     }
 
+    /// <summary>Run structural integrity checks on the B+ tree.</summary>
     public ValidationResult Validate()
     {
         if (_metadata.RootPageId == PageLayout.NullPageId)

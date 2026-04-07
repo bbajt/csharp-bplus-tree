@@ -1,6 +1,7 @@
 namespace BPlusTree.Core.Wal;
 
-public enum WalRecordType : byte
+/// <summary>Identifies the type of a WAL log record.</summary>
+internal enum WalRecordType : byte
 {
     Begin           = 1,
     Commit          = 2,

@@ -5,7 +5,7 @@ namespace BPlusTree.Core.Storage;
 /// <summary>
 /// Represents a single frame in the buffer pool.
 /// </summary>
-public sealed class Frame
+internal sealed class Frame
 {
     private readonly byte[] _data;
     private int _pinCount;

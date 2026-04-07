@@ -21,7 +21,7 @@ namespace BPlusTree.Core.Api;
 /// page locks and transaction resources via the inner transaction's rollback path.
 /// </summary>
 public sealed class BPlusTreeScope<TKey, TValue> : IDisposable, IAsyncDisposable
-    where TKey : IComparable<TKey>
+    where TKey : notnull
 {
     private readonly ITransaction<TKey, TValue> _tx;
     private bool _completed;

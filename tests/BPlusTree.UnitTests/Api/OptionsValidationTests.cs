@@ -40,9 +40,10 @@ public class OptionsValidationTests : IDisposable
     }
 
     [Fact]
-    public void Open_WithOversizedCheckpointThreshold_EmitsTreeWarning()
+    public void Open_WithOversizedCheckpointThreshold_EmitsOnWarning()
     {
         // CheckpointThreshold ≥ BufferPoolCapacity — advisory, not an error
+        var warnings = new List<string>();
         var options = new BPlusTreeOptions
         {
             DataFilePath        = _dbPath,
@@ -50,24 +51,15 @@ public class OptionsValidationTests : IDisposable
             PageSize            = 4096,
             BufferPoolCapacity  = 64,
             CheckpointThreshold = 512,   // oversized
+            OnWarning           = w => warnings.Add(w),
         };
         options.IsCheckpointThresholdOversized.Should().BeTrue("precondition");
 
-        var warnings = new List<string>();
-        Action<string> handler = w => warnings.Add(w);
-        BPlusTree<int, int>.TreeWarning += handler;
-        try
-        {
-            using var store = BPlusTree<int, int>.Open(options,
-                Int32Serializer.Instance, Int32Serializer.Instance);
-        }
-        finally
-        {
-            BPlusTree<int, int>.TreeWarning -= handler;
-        }
+        using var store = BPlusTree<int, int>.Open(options,
+            Int32Serializer.Instance, Int32Serializer.Instance);
 
         warnings.Should().Contain(w => w.Contains("CheckpointThreshold"),
-            "an oversized threshold must emit a TreeWarning");
+            "an oversized threshold must emit an OnWarning callback");
     }
 
     private BPlusTreeOptions ValidOptions() => new BPlusTreeOptions

@@ -3,7 +3,8 @@ using System.IO.Hashing;
 
 namespace BPlusTree.Core.Wal;
 
-public readonly struct WalValidationResult
+/// <summary>Result of WAL structural validation.</summary>
+internal readonly struct WalValidationResult
 {
     public bool                    IsValid       { get; init; }
     public int                     RecordCount   { get; init; }
@@ -15,7 +16,7 @@ public readonly struct WalValidationResult
 /// Forward-scanning WAL reader. Stateless — can be called multiple times.
 /// Creates a new FileStream on each open (does not keep a handle open).
 /// </summary>
-public sealed class WalReader
+internal sealed class WalReader
 {
     private readonly string _path;
 

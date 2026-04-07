@@ -10,7 +10,7 @@ namespace BPlusTree.Core.Nodes;
 /// The leftmost child pointer is stored in the extra header (HighKeyOffsetField used as LeftmostChildId).
 /// Separator key at index i is the smallest key in child subtree i+1.
 /// </summary>
-public struct InternalNode<TKey>
+internal struct InternalNode<TKey>
     where TKey : notnull
 {
     private readonly Frame                _frame;
@@ -37,6 +37,7 @@ public struct InternalNode<TKey>
         set => BinaryPrimitives.WriteUInt32BigEndian(_frame.Data.AsSpan(PageLayout.HighKeyOffsetField), value);
     }
 
+    /// <summary>Initialize this internal node page (first use only).</summary>
     public void Initialize(uint leftmostChildId)
     {
         Page.Initialize(_frame.PageId, PageType.Internal);

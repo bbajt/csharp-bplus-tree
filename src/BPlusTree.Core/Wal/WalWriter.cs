@@ -8,7 +8,7 @@ namespace BPlusTree.Core.Wal;
 /// Append-only WAL writer. Thread-safe. Buffers records in memory; Flush() writes
 /// the entire buffer to disk and fsyncs. CurrentLsn = byte offset of next record.
 /// </summary>
-public sealed class WalWriter : IDisposable
+internal sealed class WalWriter : IDisposable
 {
     private readonly FileStream _stream;
     private readonly byte[]     _buffer;
@@ -330,6 +330,7 @@ public sealed class WalWriter : IDisposable
         }
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
         if (_disposed) return;

@@ -5,7 +5,7 @@ namespace BPlusTree.Core.Wal;
 /// Does NOT own the <see cref="Data"/> buffer — it is a slice of the reader's
 /// read buffer. Copy if you need to retain it past the read call.
 /// </summary>
-public readonly struct WalRecord
+internal readonly struct WalRecord
 {
     /// <summary>Total on-disk byte length of this record including header and CRC.</summary>
     public int TotalRecordLength { get; init; }

@@ -11,7 +11,7 @@ namespace BPlusTree.Core.Storage;
 ///   Offset 36 : ushort ChunkLength         (2 bytes; valid byte count in Data area)
 ///   Offset 38 : byte[] Data                (pageSize - 38 bytes)
 /// </remarks>
-public static class OverflowPageLayout
+internal static class OverflowPageLayout
 {
     /// <summary>Offset of the NextOverflowPageId field (4 bytes; 0 = end of chain).</summary>
     public const int NextPageIdOffset  = PageLayout.CommonHeaderSize;        // 32

@@ -27,7 +27,7 @@ namespace BPlusTree.Core.Engine;
 // that builds the Active Transaction Table from WAL records during the Analysis
 // Pass and chains records via PrevLsn for per-transaction undo.
 // See: WalRecordLayout.TransactionIdOffset, WalRecordLayout.PrevLsnOffset.
-public sealed class CheckpointManager
+internal sealed class CheckpointManager
 {
     private readonly PageManager              _pageManager;
     private readonly WalWriter                _walWriter;
@@ -35,7 +35,7 @@ public sealed class CheckpointManager
     private readonly string                   _walPath;
     private readonly TransactionCoordinator?  _coordinator;
 
-    private bool _closed;
+    private volatile bool _closed;
 
     // ── Auto-checkpoint state ─────────────────────────────────────────────────
     private long                      _autoThreshold;   // 0 = disabled
@@ -175,7 +175,8 @@ public sealed class CheckpointManager
         if (_autoCts != null)
         {
             _autoCts.Cancel();
-            _autoThread!.Join(millisecondsTimeout: 1000);
+            _autoThread!.Join(millisecondsTimeout: 5000);
+            _autoCts.Dispose();
         }
 
         TakeCheckpoint();

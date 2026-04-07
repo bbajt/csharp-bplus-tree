@@ -24,7 +24,7 @@ namespace BPlusTree.Core.Engine;
 ///   - Called when root internal node reaches 0 keys (its only child becomes the new root).
 ///   - Root page freed. Metadata.RootPageId and TreeHeight updated.
 /// </summary>
-public sealed class Merger<TKey, TValue>
+internal sealed class Merger<TKey, TValue>
     where TKey : notnull
 {
     private readonly PageManager                  _pageManager;

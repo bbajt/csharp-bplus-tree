@@ -33,9 +33,9 @@ public interface IBPlusTreeMaintenance
     /// Validates the structural integrity of the tree.
     /// Checks key sort order across the leaf chain, record count consistency,
     /// and separator alignment in internal nodes.
-    /// Returns a <see cref="BPlusTree.Core.Engine.ValidationResult"/> describing
-    /// any violations found; <see cref="BPlusTree.Core.Engine.ValidationResult.IsValid"/>
+    /// Returns a <see cref="ValidationResult"/> describing
+    /// any violations found; <see cref="ValidationResult.IsValid"/>
     /// is <c>true</c> when the tree is structurally sound.
     /// </summary>
-    Engine.ValidationResult Validate();
+    ValidationResult Validate();
 }

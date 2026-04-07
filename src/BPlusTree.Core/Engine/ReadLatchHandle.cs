@@ -30,6 +30,7 @@ internal struct ReadLatchHandle : IDisposable
     /// </summary>
     internal bool IsValid => _rwl != null;
 
+    /// <inheritdoc />
     public void Dispose()
     {
         if (_disposed) return;

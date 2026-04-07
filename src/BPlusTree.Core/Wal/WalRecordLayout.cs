@@ -14,7 +14,7 @@ namespace BPlusTree.Core.Wal;
 ///   Offset 33+DataLength : uint CRC32    (4 bytes)
 /// Total fixed header: 33 bytes + DataLength + 4 bytes CRC
 /// </summary>
-public static class WalRecordLayout
+internal static class WalRecordLayout
 {
     public const int TotalLengthOffset  = 0;
     public const int TypeOffset         = 4;

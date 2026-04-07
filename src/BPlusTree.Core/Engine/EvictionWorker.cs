@@ -16,7 +16,7 @@ namespace BPlusTree.Core.Engine;
 /// while calling StorageFile.WritePage or WalWriter.FlushUpTo (deadlock prevention —
 /// see PHASE-26.MD Known Failure Points #2).
 /// </summary>
-public sealed class EvictionWorker : IDisposable
+internal sealed class EvictionWorker : IDisposable
 {
     private readonly BufferPool        _bufferPool;
     private readonly StorageFile       _storage;
@@ -56,6 +56,7 @@ public sealed class EvictionWorker : IDisposable
         };
     }
 
+    /// <summary>Start the background eviction thread.</summary>
     public void Start() { _started = true; _thread.Start(); }
 
     /// <summary>
@@ -211,14 +212,15 @@ public sealed class EvictionWorker : IDisposable
         }
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
         _cts.Cancel();
         _bufferPool.SignalEviction();   // wake thread so it sees cancellation immediately
-        if (_started && !_thread.Join(TimeSpan.FromSeconds(5)))
-            throw new TimeoutException(
-                "EvictionWorker did not exit within 5 seconds during Dispose. " +
-                "This indicates a stuck WritePage call or deadlock.");
+        // Best-effort join — never throw from Dispose, otherwise downstream cleanup
+        // (engine.Close, pageManager.Dispose) would be skipped, risking data loss.
+        if (_started)
+            _thread.Join(TimeSpan.FromSeconds(5));
         _cts.Dispose();
     }
 }

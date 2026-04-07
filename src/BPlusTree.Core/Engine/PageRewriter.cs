@@ -30,7 +30,7 @@ namespace BPlusTree.Core.Engine;
 ///   - FreeSpaceSize >= (old FreeSpaceSize + dead cell bytes).
 ///   - Page passes NodePage.Validate().
 /// </summary>
-public static class PageRewriter
+internal static class PageRewriter
 {
     /// <summary>
     /// Defragment a page in-place. frame must be pinned and write-latched by the caller.

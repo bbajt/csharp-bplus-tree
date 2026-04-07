@@ -21,7 +21,7 @@ public interface ISnapshot<TKey, TValue>
     : IReadableBPlusTree<TKey, TValue>,
       IReadOnlyDictionary<TKey, TValue>,
       IDisposable
-    where TKey : IComparable<TKey>
+    where TKey : notnull
 {
     /// <summary>
     /// The number of key-value pairs in this snapshot.

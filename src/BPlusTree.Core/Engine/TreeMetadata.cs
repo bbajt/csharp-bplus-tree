@@ -7,7 +7,7 @@ namespace BPlusTree.Core.Engine;
 /// Reads and writes the meta page (PageId 0).
 /// Holds cached in-memory copies of all meta fields; persists on Flush.
 /// </summary>
-public sealed class TreeMetadata
+internal sealed class TreeMetadata
 {
     private readonly PageManager _pageManager;
 
@@ -87,11 +87,15 @@ public sealed class TreeMetadata
         tx.UpdateLastLsn(lsn);
     }
 
-    // Mutation helpers (call Flush() to persist):
+    /// <summary>Set the root page ID and tree height.</summary>
     public void SetRoot(uint rootPageId, uint treeHeight)  { RootPageId = rootPageId; TreeHeight = treeHeight; }
+    /// <summary>Set the first leaf page ID.</summary>
     public void SetFirstLeaf(uint firstLeafPageId)          => FirstLeafPageId = firstLeafPageId;
+    /// <summary>Increment the total record count by one.</summary>
     public void IncrementRecordCount()                      => TotalRecordCount++;
+    /// <summary>Decrement the total record count by one.</summary>
     public void DecrementRecordCount()                      => TotalRecordCount--;
+    /// <summary>Set the LSN of the last completed checkpoint.</summary>
     public void SetLastCheckpointLsn(ulong lsn)             => LastCheckpointLsn = lsn;
 
     /// <summary>

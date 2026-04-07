@@ -16,7 +16,7 @@ namespace BPlusTree.Core.Engine;
 /// Timeout: all AcquireXxxLatch calls must pass a timeout to detect deadlocks in tests.
 ///          Default timeout: 30 seconds. Throw TimeoutException if not acquired in time.
 /// </summary>
-public sealed class PageLatchManager : IDisposable
+internal sealed class PageLatchManager : IDisposable
 {
     private static readonly TimeSpan DefaultLatchTimeout = TimeSpan.FromSeconds(30);
 
@@ -76,6 +76,7 @@ public sealed class PageLatchManager : IDisposable
         }
     }
 
+    /// <summary>Release all latches held by this manager.</summary>
     public void ReleaseAll()
     {
         foreach (var key in _latches.Keys.ToArray())
@@ -85,6 +86,7 @@ public sealed class PageLatchManager : IDisposable
         }
     }
 
+    /// <inheritdoc />
     public void Dispose() => ReleaseAll();
 
     // ReadLatchHandle  is defined in ReadLatchHandle.cs  (top-level internal struct). (Phase 34)

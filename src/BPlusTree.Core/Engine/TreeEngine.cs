@@ -49,8 +49,9 @@ file struct ShadowAncestorBuffer { private uint _element; }
 /// <summary>Operation type stored in the online compaction delta map (Phase 106).</summary>
 internal enum DeltaOp { Insert, Delete }
 
-public sealed class TreeEngine<TKey, TValue>
-    where TKey : IComparable<TKey>
+/// <summary>Core B+ tree engine. Manages all read/write paths, transactions, and tree structure operations.</summary>
+internal sealed class TreeEngine<TKey, TValue> : IDisposable
+    where TKey : notnull
 {
     private readonly PageManager                  _pageManager;
     private readonly NodeSerializer<TKey, TValue> _nodeSerializer;
@@ -189,7 +190,11 @@ public sealed class TreeEngine<TKey, TValue>
     {
         _checkpointManager?.GracefulClose();
         _latches.Dispose();
+        _coordinator.Dispose();
     }
+
+    /// <inheritdoc />
+    public void Dispose() => Close();
 
     /// <summary>
     /// Insert or update a key-value pair using the CoW write path.
@@ -1626,20 +1631,24 @@ public sealed class TreeEngine<TKey, TValue>
         return true;
     }
 
+    /// <summary>TryGetFirst within a transaction's shadow tree.</summary>
     internal bool TryGetFirstInTransaction(
         Transaction<TKey, TValue> tx, out TKey key, out TValue value)
         => TryGetFirstFromSnapshot(tx.TxFirstLeafId(_metadata.FirstLeafPageId), out key, out value);
 
+    /// <summary>TryGetLast within a transaction's shadow tree.</summary>
     internal bool TryGetLastInTransaction(
         Transaction<TKey, TValue> tx, out TKey key, out TValue value)
         => TryGetLastFromSnapshot(tx.TxRootId, out key, out value);
 
+    /// <inheritdoc />
     public bool TryGetFirst(out TKey key, out TValue value)
     {
         using var snap = BeginSnapshot();
         return snap.TryGetFirst(out key, out value);
     }
 
+    /// <inheritdoc />
     public bool TryGetLast(out TKey key, out TValue value)
     {
         using var snap = BeginSnapshot();
@@ -1734,20 +1743,24 @@ public sealed class TreeEngine<TKey, TValue>
         return true;
     }
 
+    /// <summary>TryGetNext within a transaction's shadow tree.</summary>
     internal bool TryGetNextInTransaction(
         TKey key, Transaction<TKey, TValue> tx, out TKey nextKey, out TValue value)
         => TryGetNextFromSnapshot(key, tx.TxRootId, out nextKey, out value);
 
+    /// <summary>TryGetPrev within a transaction's shadow tree.</summary>
     internal bool TryGetPrevInTransaction(
         TKey key, Transaction<TKey, TValue> tx, out TKey prevKey, out TValue value)
         => TryGetPrevFromSnapshot(key, tx.TxRootId, out prevKey, out value);
 
+    /// <inheritdoc />
     public bool TryGetNext(TKey key, out TKey nextKey, out TValue value)
     {
         using var snap = BeginSnapshot();
         return snap.TryGetNext(key, out nextKey, out value);
     }
 
+    /// <inheritdoc />
     public bool TryGetPrev(TKey key, out TKey prevKey, out TValue value)
     {
         using var snap = BeginSnapshot();
@@ -1797,9 +1810,11 @@ public sealed class TreeEngine<TKey, TValue>
         return count;
     }
 
+    /// <summary>CountRange within a transaction's shadow tree.</summary>
     internal long CountRangeInTransaction(TKey startKey, TKey endKey, Transaction<TKey, TValue> tx)
         => CountRangeFromSnapshot(startKey, endKey, tx.TxRootId, tx.TrackLeafRead);
 
+    /// <inheritdoc />
     public long CountRange(TKey startKey, TKey endKey)
     {
         using var snap = BeginSnapshot();
@@ -2263,104 +2278,104 @@ public sealed class TreeEngine<TKey, TValue>
         // No per-operation lock needed here.
         if (tx.TxRootId == PageLayout.NullPageId) return false;
 
-            // Phase 1: read-traverse from tx.TxRootId, collect path + leafId.
-            PathBuffer pathBuf = default;
-            Span<(uint pageId, int childPos)> path = pathBuf;
-            int  pathLen  = 0;
-            uint leafId   = 0;
+        // Phase 1: read-traverse from tx.TxRootId, collect path + leafId.
+        PathBuffer pathBuf = default;
+        Span<(uint pageId, int childPos)> path = pathBuf;
+        int  pathLen  = 0;
+        uint leafId   = 0;
 
-            bool oldIsOverflow          = false;
-            uint oldOverflowFirstPageId = 0;
+        bool oldIsOverflow          = false;
+        uint oldOverflowFirstPageId = 0;
 
-            uint currentId = tx.TxRootId;
-            while (true)
+        uint currentId = tx.TxRootId;
+        while (true)
+        {
+            using var readLatch = _latches.AcquireReadLatch(currentId);
+            var frame = _pageManager.FetchPage(currentId);
+            if (NodeSerializer<TKey, TValue>.IsLeaf(frame))
             {
-                using var readLatch = _latches.AcquireReadLatch(currentId);
-                var frame = _pageManager.FetchPage(currentId);
-                if (NodeSerializer<TKey, TValue>.IsLeaf(frame))
+                if (!LeafNode<TKey, TValue>.TryGetRawValue(
+                        frame, key, _nodeSerializer.KeySerializer,
+                        out ReadOnlySpan<byte> oldRaw, out byte oldFlags))
                 {
-                    if (!LeafNode<TKey, TValue>.TryGetRawValue(
-                            frame, key, _nodeSerializer.KeySerializer,
-                            out ReadOnlySpan<byte> oldRaw, out byte oldFlags))
-                    {
-                        _pageManager.Unpin(currentId);
-                        return false;
-                    }
-                    if ((oldFlags & PageLayout.SlotIsOverflow) != 0)
-                    {
-                        oldIsOverflow          = true;
-                        oldOverflowFirstPageId = BinaryPrimitives.ReadUInt32BigEndian(oldRaw.Slice(4, 4));
-                    }
-                    // Capture before-image for page-level write-lock conflict detection.
-                    try { tx.CaptureBeforeImage(currentId, frame.Data); }
-                    catch { _pageManager.Unpin(currentId); throw; }
-                    leafId = currentId;
                     _pageManager.Unpin(currentId);
-                    break;
+                    return false;
                 }
-                else
+                if ((oldFlags & PageLayout.SlotIsOverflow) != 0)
                 {
-                    var  node     = _nodeSerializer.AsInternal(frame);
-                    int  childPos = node.FindChildPosition(key);
-                    uint childId  = node.GetChildIdByPosition(childPos);
-                    path[pathLen++] = (currentId, childPos);
-                    _pageManager.Unpin(currentId);
-                    currentId = childId;
+                    oldIsOverflow          = true;
+                    oldOverflowFirstPageId = BinaryPrimitives.ReadUInt32BigEndian(oldRaw.Slice(4, 4));
                 }
-            }
-
-            // Compute whether new value needs overflow storage.
-            int  newVs         = _nodeSerializer.ValueSerializer.MeasureSize(newValue);
-            int  newKs         = _nodeSerializer.KeySerializer.MeasureSize(key);
-            int  maxEntryU     = PageLayout.MaxEntrySize(_pageManager.PageSize);
-            bool newIsOverflow = newKs + newVs > maxEntryU;
-
-            // Phase 2: CoW path allocation (stack-allocated buffers — zero heap alloc).
-            OldPageIdBuffer      oldIdBuf  = default;
-            ShadowAncestorBuffer ancBuf    = default;
-            Span<uint>           oldPageIds        = oldIdBuf;
-            Span<uint>           shadowAncestorIds = ancBuf;
-            var owned = tx.OwnedShadowPages;
-            var (shadowLeaf, shadowRootId) =
-                CopyWritePathAndAllocShadows(path, pathLen, leafId, oldPageIds, shadowAncestorIds, tx.TransactionId, owned);
-
-            // Phase 3: Overwrite value in shadow leaf.
-            var shadowLeafNode = _nodeSerializer.AsLeaf(shadowLeaf);
-            if (newIsOverflow)
-            {
-                byte[] vBytes = new byte[newVs];
-                _nodeSerializer.ValueSerializer.Serialize(newValue, vBytes);
-                _pageManager.AllocateOverflowChain(vBytes, out uint firstPid, out uint[] chainIds,
-                                                   tx.TransactionId);
-                tx.TrackAllocatedOverflowChain(chainIds);
-                shadowLeafNode.WriteOverflowPointer(key, firstPid, newVs);
+                // Capture before-image for page-level write-lock conflict detection.
+                try { tx.CaptureBeforeImage(currentId, frame.Data); }
+                catch { _pageManager.Unpin(currentId); throw; }
+                leafId = currentId;
+                _pageManager.Unpin(currentId);
+                break;
             }
             else
             {
-                shadowLeafNode.TryInsert(key, newValue);   // handles overflow→inline via flags fix
+                var  node     = _nodeSerializer.AsInternal(frame);
+                int  childPos = node.FindChildPosition(key);
+                uint childId  = node.GetChildIdByPosition(childPos);
+                path[pathLen++] = (currentId, childPos);
+                _pageManager.Unpin(currentId);
+                currentId = childId;
             }
-            _pageManager.MarkDirtyAndUnpin(shadowLeaf.PageId);
+        }
 
-            // Phase 4: Update transaction state (skip pages already owned — avoid double-free).
-            tx.UpdateTxRoot(shadowRootId, tx.TxTreeHeight);
-            if (!owned.Contains(shadowLeaf.PageId))
-                tx.TrackAllocatedPage(shadowLeaf.PageId);
-            for (int i = 0; i < pathLen; i++)
-                if (!owned.Contains(shadowAncestorIds[i]))
-                    tx.TrackAllocatedPage(shadowAncestorIds[i]);
-            for (int i = 0; i < pathLen; i++)
-                if (oldPageIds[i] != shadowAncestorIds[i])
-                    tx.TrackObsoletePage(oldPageIds[i]);
-            if (oldPageIds[pathLen] != shadowLeaf.PageId)
-                tx.TrackObsoletePage(oldPageIds[pathLen]);
-            if (leafId == tx.TxFirstLeafId(_metadata.FirstLeafPageId))
-                tx.TrackFirstLeafChange(shadowLeaf.PageId);
+        // Compute whether new value needs overflow storage.
+        int  newVs         = _nodeSerializer.ValueSerializer.MeasureSize(newValue);
+        int  newKs         = _nodeSerializer.KeySerializer.MeasureSize(key);
+        int  maxEntryU     = PageLayout.MaxEntrySize(_pageManager.PageSize);
+        bool newIsOverflow = newKs + newVs > maxEntryU;
 
-            // Retire old overflow chain after shadow leaf is updated (WAL ordering correct).
-            if (oldIsOverflow)
-                RetireOverflowChain(oldOverflowFirstPageId, tx.TrackObsoleteOverflowPage);
+        // Phase 2: CoW path allocation (stack-allocated buffers — zero heap alloc).
+        OldPageIdBuffer      oldIdBuf  = default;
+        ShadowAncestorBuffer ancBuf    = default;
+        Span<uint>           oldPageIds        = oldIdBuf;
+        Span<uint>           shadowAncestorIds = ancBuf;
+        var owned = tx.OwnedShadowPages;
+        var (shadowLeaf, shadowRootId) =
+            CopyWritePathAndAllocShadows(path, pathLen, leafId, oldPageIds, shadowAncestorIds, tx.TransactionId, owned);
 
-            return true;
+        // Phase 3: Overwrite value in shadow leaf.
+        var shadowLeafNode = _nodeSerializer.AsLeaf(shadowLeaf);
+        if (newIsOverflow)
+        {
+            byte[] vBytes = new byte[newVs];
+            _nodeSerializer.ValueSerializer.Serialize(newValue, vBytes);
+            _pageManager.AllocateOverflowChain(vBytes, out uint firstPid, out uint[] chainIds,
+                                               tx.TransactionId);
+            tx.TrackAllocatedOverflowChain(chainIds);
+            shadowLeafNode.WriteOverflowPointer(key, firstPid, newVs);
+        }
+        else
+        {
+            shadowLeafNode.TryInsert(key, newValue);   // handles overflow→inline via flags fix
+        }
+        _pageManager.MarkDirtyAndUnpin(shadowLeaf.PageId);
+
+        // Phase 4: Update transaction state (skip pages already owned — avoid double-free).
+        tx.UpdateTxRoot(shadowRootId, tx.TxTreeHeight);
+        if (!owned.Contains(shadowLeaf.PageId))
+            tx.TrackAllocatedPage(shadowLeaf.PageId);
+        for (int i = 0; i < pathLen; i++)
+            if (!owned.Contains(shadowAncestorIds[i]))
+                tx.TrackAllocatedPage(shadowAncestorIds[i]);
+        for (int i = 0; i < pathLen; i++)
+            if (oldPageIds[i] != shadowAncestorIds[i])
+                tx.TrackObsoletePage(oldPageIds[i]);
+        if (oldPageIds[pathLen] != shadowLeaf.PageId)
+            tx.TrackObsoletePage(oldPageIds[pathLen]);
+        if (leafId == tx.TxFirstLeafId(_metadata.FirstLeafPageId))
+            tx.TrackFirstLeafChange(shadowLeaf.PageId);
+
+        // Retire old overflow chain after shadow leaf is updated (WAL ordering correct).
+        if (oldIsOverflow)
+            RetireOverflowChain(oldOverflowFirstPageId, tx.TrackObsoleteOverflowPage);
+
+        return true;
     }
 
     /// <summary>

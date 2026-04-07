@@ -23,7 +23,7 @@ namespace BPlusTree.Core.Engine;
 /// each caller receives its own new-root value and updates its per-transaction
 /// shadow root without touching the live metadata.
 /// </summary>
-public sealed class Splitter<TKey, TValue>
+internal sealed class Splitter<TKey, TValue>
     where TKey : notnull
 {
     private readonly PageManager                  _pageManager;

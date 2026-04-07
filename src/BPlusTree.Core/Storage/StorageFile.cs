@@ -28,7 +28,7 @@ namespace BPlusTree.Core.Storage;
 ///   - WalWriter._stream.Flush(flushToDisk: true)  — inside FlushLoop and FlushUpTo
 ///   - StorageFile.Flush()                          — called by CheckpointManager only
 /// </summary>
-public sealed class StorageFile : IDisposable
+internal sealed class StorageFile : IDisposable
 {
     private FileStream _fileStream;
     private readonly string _filePath;

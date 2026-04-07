@@ -23,7 +23,7 @@ namespace BPlusTree.Core.Engine;
 /// See ROADMAP.md Phase 19 pseudocode for exact MoveNext() ordering.
 /// Phase 37: fields made mutable for pool reuse; MoveNext uses static LeafNode accessors.
 /// </summary>
-public sealed class TreeIterator<TKey, TValue> : IEnumerator<(TKey Key, TValue Value)>
+internal sealed class TreeIterator<TKey, TValue> : IEnumerator<(TKey Key, TValue Value)>
     where TKey : notnull
 {
     // ── Thread-local single-slot pool (Phase 37) ───────────────────────────

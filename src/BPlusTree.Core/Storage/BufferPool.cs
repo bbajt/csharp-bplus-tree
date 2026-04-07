@@ -24,7 +24,7 @@ namespace BPlusTree.Core.Storage;
 /// maintained under _lock at every _pageIndex modification site and read with
 /// volatile semantics for lock-free access by EvictionWorker and FetchPage.
 /// </summary>
-public sealed class BufferPool
+internal sealed class BufferPool
 {
     // readonly: TryClaimForEviction reads _frames without _lock (Phase 31 lock-free scan).
     // If pool resizing is ever needed, all lock-free _frames accesses must be audited first.

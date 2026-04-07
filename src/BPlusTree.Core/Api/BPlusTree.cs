@@ -16,37 +16,17 @@ public sealed class BPlusTree<TKey, TValue>
       IReadOnlyDictionary<TKey, TValue>,
       IBPlusTreeMaintenance,
       IDisposable
-    where TKey : IComparable<TKey>
+    where TKey : notnull
 {
     private readonly PageManager                   _pageManager;
     private readonly WalWriter                     _walWriter;
     private readonly TreeEngine<TKey, TValue>      _engine;
     private readonly CheckpointManager             _checkpointManager;
     private readonly EvictionWorker                _evictionWorker;
-    private bool _disposed;
+    private readonly BPlusTreeOptions              _options;
+    private volatile bool _disposed;
 
     public WalSyncMode SyncMode { get; }
-
-    /// <summary>
-    /// Raised when <see cref="Open"/> detects a condition that may degrade durability
-    /// or performance. The string argument is a human-readable description.
-    /// Subscribe before calling <see cref="Open"/> to receive warnings.
-    /// </summary>
-    public static event Action<string>? TreeWarning;
-
-    /// <summary>
-    /// Raised on the calling thread immediately before a compaction begins.
-    /// The argument is the data file path being compacted.
-    /// Static: shared across all <see cref="BPlusTree{TKey,TValue}"/> instances.
-    /// </summary>
-    public static event Action<string>? CompactionStarted;
-
-    /// <summary>
-    /// Raised on the calling thread immediately after a compaction completes successfully.
-    /// The first argument is the data file path; the second is the compaction outcome.
-    /// Static: shared across all <see cref="BPlusTree{TKey,TValue}"/> instances.
-    /// </summary>
-    public static event Action<string, CompactionResult>? CompactionCompleted;
 
     private void ThrowIfDisposed()
     {
@@ -78,14 +58,15 @@ public sealed class BPlusTree<TKey, TValue>
         TreeEngine<TKey, TValue> engine,
         CheckpointManager checkpointManager,
         EvictionWorker evictionWorker,
-        WalSyncMode syncMode)
+        BPlusTreeOptions options)
     {
         _pageManager        = pageManager;
         _walWriter          = walWriter;
         _engine             = engine;
         _checkpointManager  = checkpointManager;
         _evictionWorker     = evictionWorker;
-        SyncMode            = syncMode;
+        _options            = options;
+        SyncMode            = options.SyncMode;
     }
 
     /// <summary>
@@ -101,8 +82,11 @@ public sealed class BPlusTree<TKey, TValue>
         ArgumentNullException.ThrowIfNull(valueSerializer);
         options.Validate();
 
+        // Route warnings through options.OnWarning (instance) and legacy static event.
+        void EmitWarning(string msg) { options.OnWarning?.Invoke(msg); }
+
         if (options.IsCheckpointThresholdOversized)
-            TreeWarning?.Invoke(
+            EmitWarning(
                 $"Performance warning: CheckpointThreshold ({options.CheckpointThreshold}) " +
                 $"≥ BufferPoolCapacity ({options.BufferPoolCapacity}). " +
                 $"Auto-checkpoint may not fire until the buffer pool is full. " +
@@ -111,7 +95,7 @@ public sealed class BPlusTree<TKey, TValue>
         if (options.WillOverflowWalBuffer)
         {
             long walPerCycle = (long)options.CheckpointThreshold * options.PageSize;
-            TreeWarning?.Invoke(
+            EmitWarning(
                 $"Performance warning: WAL buffer will overflow during checkpoints. " +
                 $"CheckpointThreshold ({options.CheckpointThreshold}) × PageSize ({options.PageSize}) " +
                 $"= {walPerCycle / 1024}KB per cycle, exceeds WalBufferSize ({options.WalBufferSize / 1024}KB). " +
@@ -121,34 +105,49 @@ public sealed class BPlusTree<TKey, TValue>
                 $"or set WalBufferSize ≥ {walPerCycle / 1024}KB.");
         }
 
-        var walWriter   = WalWriter.Open(
-            options.WalFilePath,
-            bufferSize:      options.WalBufferSize,
-            syncMode:        options.SyncMode,
-            flushIntervalMs: options.FlushIntervalMs,
-            flushBatchSize:  options.FlushBatchSize);
-        var pageManager = PageManager.Open(options, walWriter);
-        var ns          = new NodeSerializer<TKey, TValue>(keySerializer, valueSerializer);
-        var metadata    = new TreeMetadata(pageManager);
-        metadata.Load();
-        var engine      = new TreeEngine<TKey, TValue>(pageManager, ns, metadata);
-        var ckptMgr     = engine.CheckpointManager
-            ?? throw new InvalidOperationException("CheckpointManager requires a WAL.");
+        WalWriter?   walWriter      = null;
+        PageManager? pageManager    = null;
+        EvictionWorker? evictionWorker = null;
+        try
+        {
+            walWriter   = WalWriter.Open(
+                options.WalFilePath,
+                bufferSize:      options.WalBufferSize,
+                syncMode:        options.SyncMode,
+                flushIntervalMs: options.FlushIntervalMs,
+                flushBatchSize:  options.FlushBatchSize);
+            pageManager = PageManager.Open(options, walWriter);
+            var ns          = new NodeSerializer<TKey, TValue>(keySerializer, valueSerializer);
+            var metadata    = new TreeMetadata(pageManager);
+            metadata.Load();
+            var engine      = new TreeEngine<TKey, TValue>(pageManager, ns, metadata);
+            var ckptMgr     = engine.CheckpointManager
+                ?? throw new InvalidOperationException("CheckpointManager requires a WAL.");
 
-        // Start the async eviction worker. Must be started after PageManager and WalWriter
-        // are fully initialised, and must be stopped before engine.Close() in Dispose.
-        var evictionWorker = new EvictionWorker(
-            pageManager.BufferPool,
-            pageManager.Storage,
-            walWriter,
-            options);
-        evictionWorker.Start();
+            // Start the async eviction worker. Must be started after PageManager and WalWriter
+            // are fully initialised, and must be stopped before engine.Close() in Dispose.
+            evictionWorker = new EvictionWorker(
+                pageManager.BufferPool,
+                pageManager.Storage,
+                walWriter,
+                options);
+            evictionWorker.Start();
 
-        // Start WAL size-based auto-checkpoint if configured.
-        if (options.WalAutoCheckpointThresholdBytes > 0)
-            engine.StartAutoCheckpoint(options.WalAutoCheckpointThresholdBytes);
+            // Start WAL size-based auto-checkpoint if configured.
+            if (options.WalAutoCheckpointThresholdBytes > 0)
+                engine.StartAutoCheckpoint(options.WalAutoCheckpointThresholdBytes);
 
-        return new BPlusTree<TKey, TValue>(pageManager, walWriter, engine, ckptMgr, evictionWorker, options.SyncMode);
+            return new BPlusTree<TKey, TValue>(pageManager, walWriter, engine, ckptMgr, evictionWorker, options);
+        }
+        catch
+        {
+            // Dispose already-opened resources in reverse order to prevent leaks.
+            evictionWorker?.Dispose();
+            pageManager?.Dispose();      // also disposes walWriter via its own Dispose
+            if (pageManager == null)     // pageManager wasn't created — dispose walWriter directly
+                walWriter?.Dispose();
+            throw;
+        }
     }
 
     /// <summary>
@@ -191,9 +190,13 @@ public sealed class BPlusTree<TKey, TValue>
     /// <summary>The number of key-value pairs currently in the tree.</summary>
     public long Count { get { ThrowIfDisposed(); return _engine.GetRecordCount(); } }
 
+    /// <inheritdoc />
     public bool TryGet(TKey key, out TValue value)  { ThrowIfDisposed(); return _engine.TryGet(key, out value); }
+    /// <inheritdoc />
     public bool Put(TKey key, TValue value, CancellationToken ct = default)    { ThrowIfDisposed(); return RetryOnConflict(() => _engine.Insert(key, value), ct); }
+    /// <inheritdoc />
     public bool Delete(TKey key, CancellationToken ct = default)               { ThrowIfDisposed(); return RetryOnConflict(() => _engine.Delete(key), ct); }
+    /// <inheritdoc />
     public bool ContainsKey(TKey key)               { ThrowIfDisposed(); return _engine.TryGet(key, out _); }
 
     /// <summary>Insert a key/value pair only if the key does not already exist.
@@ -357,13 +360,15 @@ public sealed class BPlusTree<TKey, TValue>
         PutRange(items.Select(kvp => (kvp.Key, kvp.Value)));
     }
 
+    /// <summary>Flush dirty pages and take a WAL checkpoint.</summary>
     public void Checkpoint() { ThrowIfDisposed(); _checkpointManager.TakeCheckpoint(); }
+    /// <inheritdoc />
     public CompactionResult Compact()
     {
         ThrowIfDisposed();
-        CompactionStarted?.Invoke(_pageManager.DataFilePath);
+        _options.OnCompactionStarted?.Invoke(_pageManager.DataFilePath);
         var result = _engine.Compact();
-        CompactionCompleted?.Invoke(_pageManager.DataFilePath, result);
+        _options.OnCompactionCompleted?.Invoke(_pageManager.DataFilePath, result);
         return result;
     }
 
@@ -385,6 +390,7 @@ public sealed class BPlusTree<TKey, TValue>
         _walWriter.FlushUpTo(_walWriter.CurrentLsn.Value);
     }
 
+    /// <inheritdoc />
     public TreeStatistics GetStatistics()
     {
         ThrowIfDisposed();
@@ -405,20 +411,28 @@ public sealed class BPlusTree<TKey, TValue>
         };
     }
 
-    public Engine.ValidationResult Validate()
+    public ValidationResult Validate()
     {
         ThrowIfDisposed();
         return _engine.Validate();
     }
 
+    /// <summary>Releases all resources: eviction worker, engine, page manager, WAL.</summary>
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
         // Order is non-negotiable — see PHASE-26.MD Known Failure Point #5.
-        _evictionWorker.Dispose(); // 1. Stop worker (FlushAll + join) — references storage + wal
-        _engine.Close();           // 2. GracefulClose (checkpoint + flush) + latches
-        _pageManager.Dispose();    // 3. FlushAllDirty, close storage, dispose WAL
+        // Each step is in its own try so that a failure in one doesn't skip the rest.
+        try { _evictionWorker.Dispose(); }  // 1. Stop worker (FlushAll + join)
+        finally
+        {
+            try { _engine.Dispose(); }      // 2. GracefulClose (checkpoint + flush) + latches + coordinator
+            finally
+            {
+                _pageManager.Dispose();     // 3. FlushAllDirty, close storage, dispose WAL
+            }
+        }
     }
 
     /// <summary>Alias for <see cref="Dispose"/>. Idempotent — safe to call multiple times.</summary>

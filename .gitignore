@@ -55,9 +55,39 @@ packages/
 # Publish output
 ############################
 publish/
+clean.ps1
 
 ############################
 # OS files
 ############################
 .DS_Store
 Thumbs.db
+
+############################
+# Local configuration
+############################
+appsettings.Development.json
+secrets.json
+NUL
+
+############################
+# Resharper
+############################
+_ReSharper*/
+*.DotSettings.user
+
+############################
+# Dotnet tools
+############################
+.dotnet/
+/BenchmarkDotNet.Artifacts
+/tests/BPlusTree.Benchmarks/BenchmarkDotNet.Artifacts
+
+############################
+# Claude Code / AI tooling
+############################
+CLAUDE.md
+.claude/
+.planning/
+.mcp.json
+.nuget-key

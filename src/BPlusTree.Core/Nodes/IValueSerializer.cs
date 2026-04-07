@@ -14,4 +14,11 @@ public interface IValueSerializer<T>
     /// Fixed-size serializers return <see cref="FixedSize"/>. Variable-size serializers override.
     /// </summary>
     int MeasureSize(T value) => FixedSize;
+
+    /// <summary>
+    /// Returns the number of bytes the serialized value at <paramref name="data"/> occupies.
+    /// Fixed-size serializers return <see cref="FixedSize"/>. Variable-size serializers
+    /// override this to read their length prefix from the page bytes.
+    /// </summary>
+    int GetSerializedSize(ReadOnlySpan<byte> data) => FixedSize;
 }

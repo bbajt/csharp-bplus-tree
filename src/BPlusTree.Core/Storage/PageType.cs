@@ -3,7 +3,7 @@ namespace BPlusTree.Core.Storage;
 /// <summary>
 /// Defines the type of a page in the B+ tree storage.
 /// </summary>
-public enum PageType : byte
+internal enum PageType : byte
 {
     /// <summary>
     /// A leaf page containing key-value pairs.
