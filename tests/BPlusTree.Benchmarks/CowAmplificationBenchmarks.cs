@@ -1,9 +1,9 @@
 using BenchmarkDotNet.Attributes;
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Storage;
-using BPlusTree.Core.Wal;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Wal;
 
-namespace BPlusTree.Benchmarks;
+namespace ByTech.BPlusTree.Core.Benchmarks;
 
 // ── Class A: Pure memory-copy cost (lower bound) ───────────────────────────────
 // Measures the raw Span<byte>.CopyTo cost of duplicating H pages of 8192 bytes.

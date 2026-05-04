@@ -1,4 +1,4 @@
-namespace BPlusTree.Core.Wal;
+namespace ByTech.BPlusTree.Core.Wal;
 
 /// <summary>
 /// Byte offsets within a serialized WAL record.

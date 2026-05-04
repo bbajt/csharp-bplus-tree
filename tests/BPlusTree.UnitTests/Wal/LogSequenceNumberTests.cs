@@ -1,8 +1,8 @@
 using Xunit;
 using FluentAssertions;
-using BPlusTree.Core.Wal;
+using ByTech.BPlusTree.Core.Wal;
 
-namespace BPlusTree.UnitTests.Wal;
+namespace ByTech.BPlusTree.Core.Tests.Wal;
 
 public class LogSequenceNumberTests
 {

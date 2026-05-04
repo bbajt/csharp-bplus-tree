@@ -1,10 +1,10 @@
 using System.Buffers.Binary;
 using System.IO;
 using System.Threading;
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Storage;
 
-namespace BPlusTree.Core.Storage;
+namespace ByTech.BPlusTree.Core.Storage;
 
 /// <summary>
 /// Synchronous file I/O wrapper for B+ tree storage.

@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
-using BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Storage;
 
-namespace BPlusTree.Core.Storage;
+namespace ByTech.BPlusTree.Core.Storage;
 
 /// <summary>
 /// Zero-copy, stack-only view over a raw page buffer.
@@ -128,6 +128,14 @@ internal ref struct NodePage
     /// Increments <see cref="FreeSpaceSize"/> by <see cref="PageLayout.SlotEntrySize"/> only
     /// (cell bytes are NOT reclaimed here — that is defragmentation's job).
     /// Updates <see cref="FreeSpaceOffset"/> by subtracting <see cref="PageLayout.SlotEntrySize"/>.
+    /// <para>
+    /// M93 Phase 3c: when the removal drains the page to <c>SlotCount == 0</c>, reset
+    /// <see cref="FreeSpaceOffset"/> and <see cref="FreeSpaceSize"/> to the empty-page
+    /// baseline. All cells on an empty page are unreferenced by definition, so the
+    /// reclaim is safe and avoids a state where <c>HasFreeSpace</c> reports <c>false</c>
+    /// on a logically empty page (which could drive the caller's <c>isLeafFull</c>
+    /// check into <see cref="Splitter{TKey,TValue}"/> on a zero-slot leaf).
+    /// </para>
     /// </summary>
     public void RemoveSlot(int slotIndex)
     {
@@ -145,6 +153,13 @@ internal ref struct NodePage
         SlotCount--;
         FreeSpaceOffset -= PageLayout.SlotEntrySize;
         FreeSpaceSize += PageLayout.SlotEntrySize;
+
+        if (SlotCount == 0)
+        {
+            // Page just drained to empty — reclaim dead cell bytes back to the baseline.
+            FreeSpaceOffset = PageLayout.FirstSlotOffset;
+            FreeSpaceSize   = (ushort)(PageSize - PageLayout.FirstSlotOffset);
+        }
     }
 
     // ── Cell Allocator ────────────────────────────────────────────────────────

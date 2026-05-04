@@ -1,10 +1,10 @@
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Engine;
-using BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Engine;
+using ByTech.BPlusTree.Core.Nodes;
 using FluentAssertions;
 using Xunit;
 
-namespace BPlusTree.UnitTests.Integration;
+namespace ByTech.BPlusTree.Core.Tests.Integration;
 
 /// <summary>
 /// Verifies that two concurrent transactions can both trigger leaf splits
@@ -39,7 +39,9 @@ public class ConcurrentSplitTests : IDisposable
         try { File.Delete(_walPath); } catch { }
     }
 
-    [Fact(Timeout = 60_000)]
+    // M97: 60s→180s under full-suite parallel load. Concurrent-split stress is
+    // CPU-bound and got starved under xUnit parallelism.
+    [Fact(Timeout = 180_000)]
     public async Task ConcurrentInserts_BothTriggerSplits_NoCorruption()
     {
         await Task.Run(() =>

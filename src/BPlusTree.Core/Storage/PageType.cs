@@ -1,4 +1,4 @@
-namespace BPlusTree.Core.Storage;
+namespace ByTech.BPlusTree.Core.Storage;
 
 /// <summary>
 /// Defines the type of a page in the B+ tree storage.

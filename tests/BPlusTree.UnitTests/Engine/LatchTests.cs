@@ -1,12 +1,12 @@
 using System.IO;
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Engine;
-using BPlusTree.Core.Nodes;
-using BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Engine;
+using ByTech.BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Storage;
 using FluentAssertions;
 using Xunit;
 
-namespace BPlusTree.UnitTests.Engine;
+namespace ByTech.BPlusTree.Core.Tests.Engine;
 
 /// <summary>
 /// Unit tests for PageLatchManager and LatchCoupling in isolation.

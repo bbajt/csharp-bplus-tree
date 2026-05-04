@@ -1,4 +1,4 @@
-namespace BPlusTree.Core.Api;
+namespace ByTech.BPlusTree.Core.Api;
 
 /// <summary>
 /// Default values for <see cref="BPlusTreeOptions"/> properties.

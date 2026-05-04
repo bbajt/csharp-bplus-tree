@@ -1,11 +1,11 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Diagnosers;
 using BenchmarkDotNet.Running;
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Engine;
-using BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Engine;
+using ByTech.BPlusTree.Core.Nodes;
 
-namespace BPlusTree.Benchmarks;
+namespace ByTech.BPlusTree.Core.Benchmarks;
 
 // ── Insert benchmark ───────────────────────────────────────────────────────────
 // Fresh empty tree each iteration: every measurement reflects inserting 1 M

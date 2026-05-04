@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
 using System.IO.Hashing;
 
-namespace BPlusTree.Core.Wal;
+namespace ByTech.BPlusTree.Core.Wal;
 
 /// <summary>Result of WAL structural validation.</summary>
 internal readonly struct WalValidationResult

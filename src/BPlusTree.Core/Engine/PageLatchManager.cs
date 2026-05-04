@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace BPlusTree.Core.Engine;
+namespace ByTech.BPlusTree.Core.Engine;
 
 /// <summary>
 /// Per-page ReaderWriterLockSlim latches. Latches are created on first access and

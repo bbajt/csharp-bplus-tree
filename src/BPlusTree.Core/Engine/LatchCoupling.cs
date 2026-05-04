@@ -1,4 +1,4 @@
-namespace BPlusTree.Core.Engine;
+namespace ByTech.BPlusTree.Core.Engine;
 
 /// <summary>
 /// Latch coupling (crab-walking) for safe concurrent B+ tree traversal.

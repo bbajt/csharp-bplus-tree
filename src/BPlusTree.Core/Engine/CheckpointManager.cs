@@ -1,7 +1,7 @@
-using BPlusTree.Core.Storage;
-using BPlusTree.Core.Wal;
+using ByTech.BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Wal;
 
-namespace BPlusTree.Core.Engine;
+namespace ByTech.BPlusTree.Core.Engine;
 
 /// <summary>
 /// Checkpoint protocol (Phase 20a) + ARIES redo recovery (Phase 20b).

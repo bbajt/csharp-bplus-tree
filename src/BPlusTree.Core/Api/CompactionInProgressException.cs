@@ -1,4 +1,4 @@
-namespace BPlusTree.Core.Api;
+namespace ByTech.BPlusTree.Core.Api;
 
 /// <summary>
 /// Thrown when <see cref="BPlusTree{TKey,TValue}.BeginTransaction"/> is called

@@ -1,10 +1,10 @@
 using System.Buffers.Binary;
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Storage;
 using FluentAssertions;
 using Xunit;
 
-namespace BPlusTree.UnitTests.Storage;
+namespace ByTech.BPlusTree.Core.Tests.Storage;
 
 /// <summary>
 /// Tests for PageManager.AllocatePageCow added in M+3.

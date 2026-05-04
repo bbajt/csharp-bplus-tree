@@ -1,4 +1,4 @@
-namespace BPlusTree.Core.Api;
+namespace ByTech.BPlusTree.Core.Api;
 
 /// <summary>Controls WAL fsync behaviour.</summary>
 public enum WalSyncMode

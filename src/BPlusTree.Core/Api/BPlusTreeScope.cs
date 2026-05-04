@@ -1,6 +1,6 @@
-using BPlusTree.Core.Engine;
+using ByTech.BPlusTree.Core.Engine;
 
-namespace BPlusTree.Core.Api;
+namespace ByTech.BPlusTree.Core.Api;
 
 /// <summary>
 /// Ergonomic transaction scope: rollback-on-exception is the default.

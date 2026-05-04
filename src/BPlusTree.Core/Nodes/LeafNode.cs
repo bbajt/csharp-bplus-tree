@@ -1,8 +1,8 @@
-using BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Storage;
 using System.Buffers;
 using System.Buffers.Binary;
 
-namespace BPlusTree.Core.Nodes;
+namespace ByTech.BPlusTree.Core.Nodes;
 
 /// <summary>
 /// Typed overlay over a leaf page. Operates on a pinned Frame's Data buffer.
@@ -103,7 +103,15 @@ internal struct LeafNode<TKey, TValue>
                     return true;
                 }
 
-                // Value size changed or type changed (overflow→inline): remove slot then re-insert.
+                // Value size changed or type changed (overflow→inline): need remove + re-insert.
+                // M139 P3: verify the new cell will fit BEFORE removing the old slot, else we
+                // lose the key entirely — the old slot is gone and HasFreeSpace fails below.
+                // After RemoveSlot we gain back SlotEntrySize bytes (slot array shrinks by one),
+                // so the net requirement for the new cell is (keyLen + valLen) ≤ FreeSpaceSize,
+                // not (keyLen + valLen + SlotEntrySize) ≤ FreeSpaceSize.
+                if (keyLen + valLen > page.FreeSpaceSize)
+                    return false;
+
                 // Cell bytes are orphaned (no compaction in this phase).
                 page.RemoveSlot(idx);
                 // idx remains the correct insertion point after slot removal.
@@ -151,10 +159,21 @@ internal struct LeafNode<TKey, TValue>
         var (idx, found) = BinarySearch(key);
         var p = Page;
 
+        // M139 P7 — same bug class as P3: when the existing key was inline (not
+        // overflow), removing the slot before checking space could leave the page
+        // without room for the new ~30-byte pointer cell on a heavily-fragmented
+        // leaf, silently dropping the key. Callers in TreeEngine pre-check via
+        // HasSpaceFor + defragment before reaching here, so a failure here is a
+        // contract violation worth surfacing loudly rather than corrupting state.
+        int cellSize = keyLen + PageLayout.OverflowPointerSize;
+        if (cellSize > p.FreeSpaceSize)
+            throw new InvalidOperationException(
+                $"WriteOverflowPointer called without sufficient leaf free space (need {cellSize} B, have {p.FreeSpaceSize} B). " +
+                "Caller must pre-check via HasSpaceFor and defragment/split before invoking.");
+
         if (found)
             p.RemoveSlot(idx);   // Remove old inline or old overflow pointer slot.
 
-        int cellSize = keyLen + PageLayout.OverflowPointerSize;
         ushort cellOff = (ushort)(p.FreeSpaceOffset + p.FreeSpaceSize - cellSize);
         var cellSpan = p.AllocateCell(cellSize);
         keyBuf[..keyLen].CopyTo(cellSpan);

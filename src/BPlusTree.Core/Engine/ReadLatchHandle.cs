@@ -1,6 +1,6 @@
 using System.Threading;
 
-namespace BPlusTree.Core.Engine;
+namespace ByTech.BPlusTree.Core.Engine;
 
 /// <summary>
 /// Lightweight struct that wraps a ReaderWriterLockSlim read-lock release.

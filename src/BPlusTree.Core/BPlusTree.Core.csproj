@@ -5,10 +5,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>ByTech.BPlusTree.Core</RootNamespace>
+    <AssemblyName>ByTech.BPlusTree.Core</AssemblyName>
 
     <!-- NuGet package metadata -->
-    <PackageId>BPlusTree.Core</PackageId>
-    <Version>2.0.0</Version>
+    <PackageId>ByTech.BPlusTree.Core</PackageId>
+    <Version>3.0.0</Version>
     <Authors>Branimir Bajt</Authors>
     <Description>A disk-based, persistent B+ tree for .NET 10. Provides a sorted key-value store with WAL-based durability, ACID transactions, snapshot isolation, online compaction, and concurrent multi-writer support. Keys and values are fully generic with custom serializer support.</Description>
     <PackageTags>bplustree;btree;sorted;key-value;kv-store;database;wal;transactions;persistent;storage</PackageTags>

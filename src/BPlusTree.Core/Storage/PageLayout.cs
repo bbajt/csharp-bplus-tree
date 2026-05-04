@@ -1,4 +1,4 @@
-namespace BPlusTree.Core.Storage;
+namespace ByTech.BPlusTree.Core.Storage;
 
 /// <summary>
 /// All byte offsets, sizes, and magic numbers for on-disk page layout.

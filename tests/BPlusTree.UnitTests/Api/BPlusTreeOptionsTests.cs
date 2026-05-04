@@ -1,8 +1,8 @@
 using Xunit;
 using FluentAssertions;
-using BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Api;
 
-namespace BPlusTree.UnitTests.Api;
+namespace ByTech.BPlusTree.Core.Tests.Api;
 
 public class BPlusTreeOptionsTests
 {

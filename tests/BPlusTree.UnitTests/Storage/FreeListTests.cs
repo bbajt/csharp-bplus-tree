@@ -1,9 +1,9 @@
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Storage;
 using FluentAssertions;
 using Xunit;
 
-namespace BPlusTree.UnitTests.Storage;
+namespace ByTech.BPlusTree.Core.Tests.Storage;
 
 /// <summary>
 /// Tests for FreeList durability: freed pages must be marked dirty

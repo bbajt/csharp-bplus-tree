@@ -1,9 +1,9 @@
 using System.Buffers.Binary;
 using System.Diagnostics;
-using BPlusTree.Core.Nodes;
-using BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Storage;
 
-namespace BPlusTree.Core.Engine;
+namespace ByTech.BPlusTree.Core.Engine;
 
 /// <summary>
 /// Forward iterator over the B+ tree leaf chain.

@@ -1,4 +1,4 @@
-namespace BPlusTree.Core.Api;
+namespace ByTech.BPlusTree.Core.Api;
 
 /// <summary>
 /// Outcome of a <see cref="BPlusTree{TKey,TValue}.Compact"/> operation.

@@ -2,11 +2,11 @@ using System;
 using System.IO;
 using Xunit;
 using FluentAssertions;
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Storage;
-using BPlusTree.Core.Wal;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Wal;
 
-namespace BPlusTree.UnitTests.Storage;
+namespace ByTech.BPlusTree.Core.Tests.Storage;
 
 public class WalPageManagerTests : IDisposable
 {

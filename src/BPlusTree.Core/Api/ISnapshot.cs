@@ -1,10 +1,10 @@
 using System.Collections.Generic;
 
-namespace BPlusTree.Core.Api;
+namespace ByTech.BPlusTree.Core.Api;
 
 /// <summary>
 /// A point-in-time read-only view of the tree, opened via
-/// <see cref="BPlusTree.Core.Api.BPlusTree{TKey,TValue}.BeginSnapshot"/>.
+/// <see cref="ByTech.BPlusTree.Core.Api.BPlusTree{TKey,TValue}.BeginSnapshot"/>.
 ///
 /// Guarantees:
 ///   - Reads are served from the committed state at the moment the snapshot was opened.

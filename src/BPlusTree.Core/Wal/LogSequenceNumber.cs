@@ -1,4 +1,4 @@
-namespace BPlusTree.Core.Wal;
+namespace ByTech.BPlusTree.Core.Wal;
 
 /// <summary>
 /// Monotonically increasing log sequence number = byte offset in the WAL file.

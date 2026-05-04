@@ -1,9 +1,9 @@
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Nodes;
 using FluentAssertions;
 using Xunit;
 
-namespace BPlusTree.UnitTests.Api;
+namespace ByTech.BPlusTree.Core.Tests.Api;
 
 /// <summary>
 /// Conformance tests for IEnumerable on IReadableBPlusTree (Phase 93 — deferral closure).

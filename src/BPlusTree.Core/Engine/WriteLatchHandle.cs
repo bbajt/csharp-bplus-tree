@@ -1,4 +1,4 @@
-namespace BPlusTree.Core.Engine;
+namespace ByTech.BPlusTree.Core.Engine;
 
 /// <summary>
 /// Write-latch handle returned by PageLatchManager.AcquireWriteLatch.

@@ -1,8 +1,8 @@
-using BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Api;
 using System.Buffers.Binary;
 using System.Text;
 
-namespace BPlusTree.Core.Nodes;
+namespace ByTech.BPlusTree.Core.Nodes;
 
 /// <summary>Int32 big-endian key serializer. Sort order: natural integer order.</summary>
 /// <remarks>

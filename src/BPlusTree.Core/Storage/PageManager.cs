@@ -1,9 +1,9 @@
 using System.Buffers;
 using System.Buffers.Binary;
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Wal;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Wal;
 
-namespace BPlusTree.Core.Storage;
+namespace ByTech.BPlusTree.Core.Storage;
 
 /// <summary>
 /// Central coordinator for all page I/O. Owns StorageFile, BufferPool, and FreeList.

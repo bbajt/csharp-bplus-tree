@@ -1,11 +1,11 @@
 using System.Diagnostics;
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Nodes;
-using BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Storage;
 using System.Buffers.Binary;
 using System.Linq;
 
-namespace BPlusTree.Core.Engine;
+namespace ByTech.BPlusTree.Core.Engine;
 
 /// <summary>
 /// Core B+ tree traversal and mutation engine. Stateless between calls.
@@ -345,6 +345,27 @@ internal sealed class TreeEngine<TKey, TValue> : IDisposable
                         oldFirstPageId = BinaryPrimitives.ReadUInt32BigEndian(oldRaw.Slice(4, 4));
                     }
 
+                    // M140 P4: same M139 P3 class in the overflow upsert path.
+                    // For keyExists the leaf may have insufficient space for the new
+                    // pointer cell; defragment + recheck and escalate to CoW if still
+                    // full, BEFORE allocating an overflow chain we'd then leak.
+                    if (!leafNode.HasSpaceFor(actualKs, PageLayout.OverflowPointerSize))
+                    {
+                        if (_pageManager.Wal != null && PageRewriter.FragmentedBytes(leafFrame) > 0)
+                        {
+                            PageRewriter.Defragment(leafFrame, _pageManager.Wal, transactionId: 0);
+                            if (!leafNode.HasSpaceFor(actualKs, PageLayout.OverflowPointerSize))
+                            {
+                                _pageManager.Unpin(leafId);
+                                goto CoWPath;
+                            }
+                        }
+                        else
+                        {
+                            _pageManager.Unpin(leafId);
+                            goto CoWPath;
+                        }
+                    }
                     byte[] vBytes = new byte[actualVs];
                     _nodeSerializer.ValueSerializer.Serialize(value, vBytes);
                     _pageManager.AllocateOverflowChain(vBytes, out uint firstPageId, out _, txId: 0);
@@ -356,7 +377,28 @@ internal sealed class TreeEngine<TKey, TValue> : IDisposable
                 }
                 else
                 {
-                    leafNode.TryInsert(key, value);
+                    // M139 P3: upsert with a value size different from the existing value can
+                    // run the leaf out of free space (orphan bytes from prior same-key upserts
+                    // accumulate). TryInsert now returns false in that case WITHOUT mutating;
+                    // reclaim the orphan bytes via in-place defragment and retry. If it still
+                    // doesn't fit, unpin clean and fall through to the CoW / split path.
+                    if (!leafNode.TryInsert(key, value))
+                    {
+                        if (_pageManager.Wal != null && PageRewriter.FragmentedBytes(leafFrame) > 0)
+                        {
+                            PageRewriter.Defragment(leafFrame, _pageManager.Wal, transactionId: 0);
+                            if (!leafNode.TryInsert(key, value))
+                            {
+                                _pageManager.Unpin(leafId);
+                                goto CoWPath;
+                            }
+                        }
+                        else
+                        {
+                            _pageManager.Unpin(leafId);
+                            goto CoWPath;
+                        }
+                    }
                     _pageManager.MarkDirtyAndUnpin(leafId);   // appends UpdatePage WAL record
                     if (!keyExists) _metadata.IncrementRecordCount();
                     _metadata.Flush();                         // appends UpdateMeta WAL record
@@ -365,6 +407,7 @@ internal sealed class TreeEngine<TKey, TValue> : IDisposable
                 return !keyExists;
             }
 
+            CoWPath:
             // Phase 2: CoW path allocation (stack-allocated buffers — zero heap alloc).
             OldPageIdBuffer      oldIdBuf      = default;
             ShadowAncestorBuffer shadowAncBuf  = default;
@@ -379,12 +422,48 @@ internal sealed class TreeEngine<TKey, TValue> : IDisposable
 
             bool wasFirstLeaf = leafId == _metadata.FirstLeafPageId;
 
+            // M94-0': before committing to a split, try in-place defragmentation of the
+            // shadow leaf. Dead cell bytes from prior deletes are retained by RemoveSlot
+            // until PageRewriter.Defragment compacts them out; without this call a
+            // partially-fragmented leaf can report !HasSpaceFor for an entry that would
+            // comfortably fit after reclaim, forcing an unnecessary split.
+            if (!keyExists && isLeafFull && _pageManager.Wal != null
+                && PageRewriter.FragmentedBytes(shadowLeaf) > 0)
+            {
+                PageRewriter.Defragment(shadowLeaf, _pageManager.Wal, transactionId: 0);
+                var shadowLeafForRecheck = _nodeSerializer.AsLeaf(shadowLeaf);
+                bool stillFull = needsOverflow
+                    ? !shadowLeafForRecheck.HasSpaceFor(actualKs, PageLayout.OverflowPointerSize)
+                    : !shadowLeafForRecheck.HasSpaceFor(actualKs, actualVs);
+                if (!stillFull) isLeafFull = false;
+            }
+
             if (keyExists || !isLeafFull)
             {
                 // Key exists (overwrite) or leaf has room — direct shadow-leaf modification.
                 var shadowLeafNode = _nodeSerializer.AsLeaf(shadowLeaf);
                 if (needsOverflow)
                 {
+                    // M140 P4: same M139 P3 class in CoW shadow overflow upsert path.
+                    // Pre-check + defragment + escalate to split BEFORE allocating the
+                    // overflow chain (else we leak it on escalation).
+                    if (!shadowLeafNode.HasSpaceFor(actualKs, PageLayout.OverflowPointerSize))
+                    {
+                        if (_pageManager.Wal != null && PageRewriter.FragmentedBytes(shadowLeaf) > 0)
+                        {
+                            PageRewriter.Defragment(shadowLeaf, _pageManager.Wal, transactionId: 0);
+                            if (!shadowLeafNode.HasSpaceFor(actualKs, PageLayout.OverflowPointerSize))
+                            {
+                                isLeafFull = true;
+                                goto SplitPath;
+                            }
+                        }
+                        else
+                        {
+                            isLeafFull = true;
+                            goto SplitPath;
+                        }
+                    }
                     byte[] vBytes = new byte[actualVs];
                     _nodeSerializer.ValueSerializer.Serialize(value, vBytes);
                     _pageManager.AllocateOverflowChain(vBytes, out uint firstPid, out _, txId: 0);
@@ -392,7 +471,27 @@ internal sealed class TreeEngine<TKey, TValue> : IDisposable
                 }
                 else
                 {
-                    shadowLeafNode.TryInsert(key, value);
+                    // M139 P3: upsert with growing value can exhaust free space on a page
+                    // full of orphaned cells from prior same-key upserts. TryInsert returns
+                    // false without mutation; reclaim orphan bytes via defragment and retry.
+                    // If still full after defragment, escalate to split.
+                    if (!shadowLeafNode.TryInsert(key, value))
+                    {
+                        if (_pageManager.Wal != null && PageRewriter.FragmentedBytes(shadowLeaf) > 0)
+                        {
+                            PageRewriter.Defragment(shadowLeaf, _pageManager.Wal, transactionId: 0);
+                            if (!shadowLeafNode.TryInsert(key, value))
+                            {
+                                isLeafFull = true;
+                                goto SplitPath;
+                            }
+                        }
+                        else
+                        {
+                            isLeafFull = true;
+                            goto SplitPath;
+                        }
+                    }
                 }
                 _pageManager.MarkDirtyAndUnpin(shadowLeaf.PageId);
                 _metadata.SetRoot(shadowRootId, _metadata.TreeHeight);
@@ -404,6 +503,8 @@ internal sealed class TreeEngine<TKey, TValue> : IDisposable
                 if (_deltaMap != null) _deltaMap[key] = (DeltaOp.Insert, value);
                 return !keyExists;
             }
+
+            SplitPath:
 
             // Shadow leaf is full (new key) — split in shadow context.
             _pageManager.Unpin(shadowLeaf.PageId); // Splitter will FetchPage it
@@ -423,7 +524,10 @@ internal sealed class TreeEngine<TKey, TValue> : IDisposable
                 _metadata.SetRoot(newAutoRoot, newAutoHeight);
 
             // Re-traverse shadow tree from the (possibly new) root to insert the key.
-            // Split path is only reached for new keys (keyExists=false), so no old overflow chain.
+            // M139 P7: SplitPath is now also reachable with keyExists=true via the
+            // CoW-shadow defragment+retry escalation goto above (line ~445). The
+            // record-count bump and old-overflow retire below are conditioned on
+            // keyExists so the bookkeeping stays correct in both paths.
             uint insertId = _metadata.RootPageId;
             while (true)
             {
@@ -433,6 +537,14 @@ internal sealed class TreeEngine<TKey, TValue> : IDisposable
                     var insertLeafNode = _nodeSerializer.AsLeaf(insertFrame);
                     if (needsOverflow)
                     {
+                        // M140 P4: post-split re-traversal overflow upsert. Should always
+                        // fit, but defragment as a defensive measure before the loud throw.
+                        if (!insertLeafNode.HasSpaceFor(actualKs, PageLayout.OverflowPointerSize)
+                            && _pageManager.Wal != null
+                            && PageRewriter.FragmentedBytes(insertFrame) > 0)
+                        {
+                            PageRewriter.Defragment(insertFrame, _pageManager.Wal, transactionId: 0);
+                        }
                         byte[] vBytes = new byte[actualVs];
                         _nodeSerializer.ValueSerializer.Serialize(value, vBytes);
                         _pageManager.AllocateOverflowChain(vBytes, out uint firstPid, out _, txId: 0);
@@ -440,7 +552,31 @@ internal sealed class TreeEngine<TKey, TValue> : IDisposable
                     }
                     else
                     {
-                        insertLeafNode.TryInsert(key, value);
+                        // M140 P3: third call site of TryInsert that ignored the bool return.
+                        // After a fresh leaf split there should be plenty of room, but the
+                        // upsert-changed-size path (keyExists=true reached via M139 P7's
+                        // CoW-shadow → SplitPath escalation goto) can still hit
+                        // pre-RemoveSlot space failure on a fragmented destination leaf.
+                        // Defragment + retry first; if still false the invariant in
+                        // Splitter.SplitLeaf for the keyExists=true case is violated and
+                        // we surface loudly rather than silently lose data.
+                        if (!insertLeafNode.TryInsert(key, value))
+                        {
+                            if (_pageManager.Wal != null && PageRewriter.FragmentedBytes(insertFrame) > 0)
+                            {
+                                PageRewriter.Defragment(insertFrame, _pageManager.Wal, transactionId: 0);
+                                if (!insertLeafNode.TryInsert(key, value))
+                                    throw new InvalidOperationException(
+                                        "TreeEngine.Insert SplitPath re-traversal: TryInsert failed even after defragment. " +
+                                        "Splitter.SplitLeaf invariant violation for keyExists=true.");
+                            }
+                            else
+                            {
+                                throw new InvalidOperationException(
+                                    "TreeEngine.Insert SplitPath re-traversal: TryInsert failed with no fragmentation. " +
+                                    "Splitter.SplitLeaf must produce a leaf with sufficient room for the entry.");
+                            }
+                        }
                     }
                     _pageManager.MarkDirtyAndUnpin(insertId);
                     break;
@@ -454,11 +590,12 @@ internal sealed class TreeEngine<TKey, TValue> : IDisposable
                 }
             }
 
-            _metadata.IncrementRecordCount();
+            if (!keyExists) _metadata.IncrementRecordCount();
             _metadata.Flush();
+            if (cowOldIsOverflow) RetireOverflowChain(cowOldOverflowFirstPageId, _coordinator.RetirePage, writeWalRecord: true);
             _coordinator.RetirePages(oldPageIds, pathLen + 1);
             if (_deltaMap != null) _deltaMap[key] = (DeltaOp.Insert, value);
-            return true;
+            return !keyExists;
         }
         finally
         {
@@ -1996,6 +2133,19 @@ internal sealed class TreeEngine<TKey, TValue> : IDisposable
                 tx.TrackObsoletePage(oldPageIds[pathLen]);
             if (wasFirstLeaf)
                 tx.TrackFirstLeafChange(shadowLeaf.PageId);
+
+            // M94-0': defrag-before-split (see Insert() for rationale). In this path
+            // Transaction construction already requires _pageManager.Wal non-null,
+            // so we dereference without a further guard.
+            if (!keyExists && isLeafFull && PageRewriter.FragmentedBytes(shadowLeaf) > 0)
+            {
+                PageRewriter.Defragment(shadowLeaf, _pageManager.Wal!, tx.TransactionId);
+                var shadowLeafForRecheck = _nodeSerializer.AsLeaf(shadowLeaf);
+                bool stillFull = needsOverflow
+                    ? !shadowLeafForRecheck.HasSpaceFor(actualKs, PageLayout.OverflowPointerSize)
+                    : !shadowLeafForRecheck.HasSpaceFor(actualKs, actualVs);
+                if (!stillFull) isLeafFull = false;
+            }
 
             if (keyExists || !isLeafFull)
             {

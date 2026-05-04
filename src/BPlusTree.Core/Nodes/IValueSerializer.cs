@@ -1,4 +1,4 @@
-namespace BPlusTree.Core.Nodes;
+namespace ByTech.BPlusTree.Core.Nodes;
 
 /// <summary>
 /// Serializes a value type to/from bytes. Sort order is NOT required.

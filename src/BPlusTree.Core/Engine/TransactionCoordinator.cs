@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
 using System.Linq;
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Storage;
 
-namespace BPlusTree.Core.Engine;
+namespace ByTech.BPlusTree.Core.Engine;
 
 /// <summary>
 /// Allocates monotonically increasing transaction IDs and manages the page-level

@@ -1,4 +1,4 @@
-namespace BPlusTree.Core.Storage;
+namespace ByTech.BPlusTree.Core.Storage;
 
 /// <summary>
 /// Byte offsets for overflow page layout.

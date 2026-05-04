@@ -1,7 +1,7 @@
 using FluentAssertions;
 using Xunit;
 
-namespace BPlusTree.UnitTests;
+namespace ByTech.BPlusTree.Core.Tests;
 
 public class PlaceholderTest
 {

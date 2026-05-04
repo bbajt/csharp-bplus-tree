@@ -1,4 +1,4 @@
-namespace BPlusTree.Core.Api;
+namespace ByTech.BPlusTree.Core.Api;
 
 /// <summary>Result of a tree structure validation.</summary>
 public sealed class ValidationResult

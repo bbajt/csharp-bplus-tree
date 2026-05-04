@@ -1,6 +1,6 @@
 using System;
 
-namespace BPlusTree.Core.Storage;
+namespace ByTech.BPlusTree.Core.Storage;
 
 /// <summary>
 /// Represents a single frame in the buffer pool.

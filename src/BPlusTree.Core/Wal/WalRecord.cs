@@ -1,4 +1,4 @@
-namespace BPlusTree.Core.Wal;
+namespace ByTech.BPlusTree.Core.Wal;
 
 /// <summary>
 /// In-memory representation of a single WAL record decoded from disk.

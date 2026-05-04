@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace BPlusTree.Core.Api;
+namespace ByTech.BPlusTree.Core.Api;
 
 /// <summary>
 /// Read-only view of a B+ tree. Implemented by <see cref="BPlusTree{TKey,TValue}"/>,

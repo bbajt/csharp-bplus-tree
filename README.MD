@@ -1,14 +1,14 @@
-# BPlusTree.Core
+# ByTech.BPlusTree
 
 A disk-based, persistent B+ tree for .NET 10 — a sorted key-value store with
 WAL-based durability, ACID transactions, snapshot isolation, online compaction,
 and concurrent multi-writer support.
 
-[![NuGet](https://img.shields.io/nuget/v/BPlusTree.Core.svg?label=nuget&color=blue)](https://www.nuget.org/packages/BPlusTree.Core)
-[![NuGet Downloads](https://img.shields.io/nuget/dt/BPlusTree.Core.svg?color=blue)](https://www.nuget.org/packages/BPlusTree.Core)
+[![NuGet](https://img.shields.io/nuget/v/ByTech.BPlusTree.Core.svg?label=nuget&color=blue)](https://www.nuget.org/packages/ByTech.BPlusTree.Core)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/ByTech.BPlusTree.Core.svg?color=blue)](https://www.nuget.org/packages/ByTech.BPlusTree.Core)
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4)](#)
 [![C%23](https://img.shields.io/badge/C%23-13-239120)](#)
-[![Tests](https://img.shields.io/badge/tests-653-brightgreen)](#)
+[![Tests](https://img.shields.io/badge/tests-686-brightgreen)](#)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 **The only .NET library combining a disk-based B+ tree with WAL-based durability, ACID transactions, and snapshot isolation.**
@@ -35,18 +35,18 @@ Existing alternatives ([CSharpTest.Net.BPlusTree](https://github.com/csharptest/
 ## Installation
 
 ```bash
-dotnet add package BPlusTree.Core
+dotnet add package ByTech.BPlusTree.Core
 ```
 
-NuGet: [https://www.nuget.org/packages/BPlusTree.Core](https://www.nuget.org/packages/BPlusTree.Core)
+NuGet: [https://www.nuget.org/packages/ByTech.BPlusTree.Core](https://www.nuget.org/packages/ByTech.BPlusTree.Core)
 
 ---
 
 ## Quick Start
 
 ```csharp
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Nodes;
 
 var options = new BPlusTreeOptions
 {
@@ -301,16 +301,23 @@ main tree (no `Put`/`Delete` — use `Insert`/`TryDelete` instead):
 
 ## Sample Projects
 
-The [`samples/`](samples/BPlusTree.Samples) directory contains six runnable demos:
+The [`samples/`](samples/BPlusTree.Samples) directory contains thirteen runnable demos:
 
-| Sample | What it shows |
-|--------|--------------|
-| `SimpleKvStore` | Basic put/get/delete/scan, persistence across sessions |
-| `CustomerStore` | Custom struct serializer, wrapper pattern |
-| `EventLog` | Append-only log with time-range scans |
-| `Transactions` | Atomic multi-record writes, rollback on exception, async commit |
-| `Snapshot` | Point-in-time isolation — snapshot unaffected by live mutations |
-| `GroupCommitThroughput` | Throughput comparison: Synchronous vs GroupCommit WAL mode |
+| # | Sample | What it shows |
+|---|--------|--------------|
+| 01 | `SimpleKvStore` | Basic put/get/delete/scan, persistence across sessions |
+| 02 | `CustomerStore` | Custom struct serializer, wrapper pattern |
+| 03 | `EventLog` | Append-only log with time-range scans |
+| 04 | `Transactions` | Atomic multi-record writes, rollback on exception, async commit |
+| 05 | `Snapshot` | Point-in-time isolation — snapshot unaffected by live mutations |
+| 06 | `GroupCommitThroughput` | Throughput comparison: Synchronous vs GroupCommit WAL mode |
+| 07 | `CompareAndSwap` | Lock-free optimistic updates under multi-threaded contention |
+| 08 | `AtomicCompoundOps` | `GetOrAdd` / `AddOrUpdate` / `TryUpdate(factory)` / `TryGetAndDelete` |
+| 09 | `BulkLoad` | `PutRange` (atomic) vs loop-of-`Put` (per-row visible) |
+| 10 | `RangeQueries` | `ScanReverse`, `TryGetFirst`/`Last`, `CountRange`, top-N idiom |
+| 11 | `CrashRecovery` | WAL durability + transaction abort-on-dispose across restarts |
+| 12 | `Maintenance` | `Compact()` + `GetStatistics()` + `Validate()` |
+| 13 | `ReadOnlyDictionary` | `IReadOnlyDictionary<,>` consumption (live tree + snapshots) |
 
 Run all demos:
 ```bash

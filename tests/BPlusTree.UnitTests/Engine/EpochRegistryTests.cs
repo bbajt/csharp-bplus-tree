@@ -1,8 +1,8 @@
-using BPlusTree.Core.Engine;
+using ByTech.BPlusTree.Core.Engine;
 using FluentAssertions;
 using Xunit;
 
-namespace BPlusTree.UnitTests.Engine;
+namespace ByTech.BPlusTree.Core.Tests.Engine;
 
 /// <summary>
 /// Tests for the epoch-based reader registry added to TransactionCoordinator in M+1.

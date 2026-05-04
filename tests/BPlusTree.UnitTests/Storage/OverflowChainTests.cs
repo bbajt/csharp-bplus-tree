@@ -2,10 +2,10 @@ using System;
 using System.IO;
 using Xunit;
 using FluentAssertions;
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Storage;
 
-namespace BPlusTree.UnitTests.Storage;
+namespace ByTech.BPlusTree.Core.Tests.Storage;
 
 /// <summary>
 /// Phase 97 — Overflow page I/O layer.

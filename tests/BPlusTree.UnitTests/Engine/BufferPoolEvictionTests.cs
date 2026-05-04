@@ -3,11 +3,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Xunit;
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Storage;
-using BPlusTree.Core.Wal;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Wal;
 
-namespace BPlusTree.UnitTests.Engine;
+namespace ByTech.BPlusTree.Core.Tests.Engine;
 
 /// <summary>
 /// Phase 26a infrastructure tests.

@@ -1,6 +1,6 @@
 using System;
 
-namespace BPlusTree.Core.Api;
+namespace ByTech.BPlusTree.Core.Api;
 
 /// <summary>
 /// Exception thrown when the buffer pool is exhausted and no more frames can be pinned.

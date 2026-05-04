@@ -1,4 +1,4 @@
-namespace BPlusTree.Core.Nodes;
+namespace ByTech.BPlusTree.Core.Nodes;
 
 /// <summary>
 /// Serializes a key type to/from a fixed or variable-length big-endian byte span.

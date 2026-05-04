@@ -1,11 +1,11 @@
 using System.Collections;
 using System.ComponentModel;
-using BPlusTree.Core.Engine;
-using BPlusTree.Core.Nodes;
-using BPlusTree.Core.Storage;
-using BPlusTree.Core.Wal;
+using ByTech.BPlusTree.Core.Engine;
+using ByTech.BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Wal;
 
-namespace BPlusTree.Core.Api;
+namespace ByTech.BPlusTree.Core.Api;
 
 /// <summary>
 /// Public entry point. Thread-safe.

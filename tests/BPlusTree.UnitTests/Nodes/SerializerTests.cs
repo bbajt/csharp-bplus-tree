@@ -1,9 +1,9 @@
 using System;
 using Xunit;
 using FluentAssertions;
-using BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Nodes;
 
-namespace BPlusTree.UnitTests.Nodes;
+namespace ByTech.BPlusTree.Core.Tests.Nodes;
 
 public class SerializerTests
 {

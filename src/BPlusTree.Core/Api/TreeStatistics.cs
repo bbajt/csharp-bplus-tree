@@ -1,4 +1,4 @@
-namespace BPlusTree.Core.Api;
+namespace ByTech.BPlusTree.Core.Api;
 
 /// <summary>Read-only snapshot of tree metrics returned by GetStatistics().</summary>
 public readonly struct TreeStatistics

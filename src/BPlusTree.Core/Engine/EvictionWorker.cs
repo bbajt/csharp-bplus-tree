@@ -1,9 +1,9 @@
 using System.Buffers.Binary;
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Storage;
-using BPlusTree.Core.Wal;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Wal;
 
-namespace BPlusTree.Core.Engine;
+namespace ByTech.BPlusTree.Core.Engine;
 
 /// <summary>
 /// Background thread that writes dirty pages from the buffer pool to the data file.

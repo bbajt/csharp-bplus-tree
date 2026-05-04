@@ -7,11 +7,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using FluentAssertions;
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Nodes;
-using BPlusTree.Core.Wal;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Wal;
 
-namespace BPlusTree.UnitTests.Wal;
+namespace ByTech.BPlusTree.Core.Tests.Wal;
 
 public class WalGroupCommitTests : IDisposable
 {

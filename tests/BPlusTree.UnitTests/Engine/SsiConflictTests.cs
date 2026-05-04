@@ -1,10 +1,10 @@
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Engine;
-using BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Engine;
+using ByTech.BPlusTree.Core.Nodes;
 using FluentAssertions;
 using Xunit;
 
-namespace BPlusTree.UnitTests.Engine;
+namespace ByTech.BPlusTree.Core.Tests.Engine;
 
 /// <summary>
 /// Tests for SSI Phase 2: read-write conflict detection at commit (Phase 89).

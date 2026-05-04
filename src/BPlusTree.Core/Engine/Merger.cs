@@ -1,7 +1,7 @@
-using BPlusTree.Core.Nodes;
-using BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Storage;
 
-namespace BPlusTree.Core.Engine;
+namespace ByTech.BPlusTree.Core.Engine;
 
 /// <summary>
 /// Handles underflow after deletion: borrow from a sibling or merge with a sibling.
@@ -232,16 +232,31 @@ internal sealed class Merger<TKey, TValue>
         _tx?.CaptureBeforeImage(parentId, parentFrame.Data);    // Category A
         var parent      = _nodeSerializer.AsInternal(parentFrame);
 
-        // Compact left leaf if accumulated orphaned cells would cause TryInsert to fail.
-        int ks = _nodeSerializer.KeySerializer.FixedSize;
-        int vs = _nodeSerializer.ValueSerializer.FixedSize;
-        if (!leftLeaf.HasSpaceFor(ks, vs))
-            CompactLeaf(leftLeaf);
-
+        // M140 P3: measure the actual moved entry — FixedSize is -1 for variable
+        // serializers (string, byte[]) so the original HasSpaceFor pre-check was a
+        // no-op for those types and the borrow could silently lose the entry on
+        // TryInsert. Pre-flight + compact + retry; abort the borrow if still no fit
+        // (caller will fall through to merge / leave underflow).
         TKey   movedKey   = rightLeaf.GetKey(0);
         TValue movedValue = rightLeaf.GetValue(0);
+        int    moveKs     = _nodeSerializer.KeySerializer.MeasureSize(movedKey);
+        int    moveVs     = _nodeSerializer.ValueSerializer.MeasureSize(movedValue);
+        if (!leftLeaf.HasSpaceFor(moveKs, moveVs))
+        {
+            CompactLeaf(leftLeaf);
+            if (!leftLeaf.HasSpaceFor(moveKs, moveVs))
+            {
+                _pageManager.Unpin(leftId);
+                _pageManager.Unpin(rightId);
+                _pageManager.Unpin(parentId);
+                return;
+            }
+        }
+
         rightLeaf.Remove(movedKey);
-        leftLeaf.TryInsert(movedKey, movedValue);
+        if (!leftLeaf.TryInsert(movedKey, movedValue))
+            throw new InvalidOperationException(
+                "Merger.BorrowFromRightLeaf: TryInsert failed after pre-flight HasSpaceFor passed.");
 
         TKey newSeparator = rightLeaf.GetKey(0);
         parent.UpdateSeparatorKey(separatorIndex, newSeparator);
@@ -281,17 +296,29 @@ internal sealed class Merger<TKey, TValue>
         _tx?.CaptureBeforeImage(parentId, parentFrame.Data);    // Category A
         var parent      = _nodeSerializer.AsInternal(parentFrame);
 
-        // Compact right leaf if accumulated orphaned cells would cause TryInsert to fail.
-        int ks = _nodeSerializer.KeySerializer.FixedSize;
-        int vs = _nodeSerializer.ValueSerializer.FixedSize;
-        if (!rightLeaf.HasSpaceFor(ks, vs))
-            CompactLeaf(rightLeaf);
-
+        // M140 P3: same fix as BorrowFromRightLeaf — measure the actual moved entry,
+        // pre-flight + compact + retry, abort the borrow if still no fit.
         int    lastIdx    = leftLeaf.Count - 1;
         TKey   movedKey   = leftLeaf.GetKey(lastIdx);
         TValue movedValue = leftLeaf.GetValue(lastIdx);
+        int    moveKs     = _nodeSerializer.KeySerializer.MeasureSize(movedKey);
+        int    moveVs     = _nodeSerializer.ValueSerializer.MeasureSize(movedValue);
+        if (!rightLeaf.HasSpaceFor(moveKs, moveVs))
+        {
+            CompactLeaf(rightLeaf);
+            if (!rightLeaf.HasSpaceFor(moveKs, moveVs))
+            {
+                _pageManager.Unpin(leftId);
+                _pageManager.Unpin(rightId);
+                _pageManager.Unpin(parentId);
+                return;
+            }
+        }
+
         leftLeaf.Remove(movedKey);
-        rightLeaf.TryInsert(movedKey, movedValue);
+        if (!rightLeaf.TryInsert(movedKey, movedValue))
+            throw new InvalidOperationException(
+                "Merger.BorrowFromLeftLeaf: TryInsert failed after pre-flight HasSpaceFor passed.");
 
         parent.UpdateSeparatorKey(separatorIndex, movedKey);
 
@@ -328,7 +355,12 @@ internal sealed class Merger<TKey, TValue>
         leaf.Initialize();
         leaf.PrevLeafPageId = prevId;
         leaf.NextLeafPageId = nextId;
-        for (int i = 0; i < lc; i++) leaf.TryInsert(keys[i], values[i]);
+        for (int i = 0; i < lc; i++)
+        {
+            if (!leaf.TryInsert(keys[i], values[i]))
+                throw new InvalidOperationException(
+                    "Merger.CompactLeaf: TryInsert failed after Initialize — entries that fit before defragment must fit after.");
+        }
     }
 
     /// <summary>
@@ -358,6 +390,27 @@ internal sealed class Merger<TKey, TValue>
         for (int i = 0; i < lc; i++) { keys[i]      = leftLeaf.GetKey(i);  values[i]      = leftLeaf.GetValue(i); }
         for (int i = 0; i < rc; i++) { keys[lc + i]  = rightLeaf.GetKey(i); values[lc + i] = rightLeaf.GetValue(i); }
 
+        // M140 P3: pre-flight feasibility check. Two underflowed leaves are merged
+        // when both fall below the count-based threshold, but with variable-size
+        // values the combined cell bytes may exceed page capacity. Pre-M140 the
+        // overflow caused silent TryInsert failures → key loss. Now we measure
+        // up-front and skip the merge if it can't fit, leaving the leaves
+        // underflowed (a soft hint) rather than dropping data.
+        int requiredBytes = keys.Length * PageLayout.SlotEntrySize;
+        for (int i = 0; i < keys.Length; i++)
+        {
+            requiredBytes += _nodeSerializer.KeySerializer.MeasureSize(keys[i]);
+            requiredBytes += _nodeSerializer.ValueSerializer.MeasureSize(values[i]);
+        }
+        int usableBytes = _pageManager.PageSize - PageLayout.FirstSlotOffset;
+        if (requiredBytes > usableBytes)
+        {
+            _pageManager.Unpin(leftId);
+            _pageManager.Unpin(rightId);
+            _pageManager.Unpin(parentId);
+            return;
+        }
+
         // Preserve sibling pointers before reinitializing.
         uint prevId    = leftLeaf.PrevLeafPageId;
         uint oldNextId = rightLeaf.NextLeafPageId;
@@ -367,7 +420,12 @@ internal sealed class Merger<TKey, TValue>
         leftLeaf.PrevLeafPageId = prevId;
         leftLeaf.NextLeafPageId = oldNextId;
         for (int i = 0; i < keys.Length; i++)
-            leftLeaf.TryInsert(keys[i], values[i]);
+        {
+            if (!leftLeaf.TryInsert(keys[i], values[i]))
+                throw new InvalidOperationException(
+                    $"Merger.MergeLeaves: TryInsert of entry {i}/{keys.Length} failed despite pre-flight feasibility check passing. " +
+                    "Indicates a bug in MeasureSize accounting (overflow values? variable encoding?).");
+        }
 
         // Fix forward sibling pointer.
         if (oldNextId != PageLayout.NullPageId)
@@ -455,7 +513,13 @@ internal sealed class Merger<TKey, TValue>
         uint rightLeftmost = rightNode.LeftmostChildId;
 
         // 1. Append parent separator to leftNode; its right child = rightNode.LeftmostChildId.
-        leftNode.TryAppend(parentSep, rightLeftmost);
+        // M140 P3 assertion: leftNode is below count-threshold per RebalanceInternal's
+        // gating, but variable-size keys may push it over BYTE capacity for one more
+        // separator. Surface loudly rather than lose the child pointer (= subtree).
+        if (!leftNode.TryAppend(parentSep, rightLeftmost))
+            throw new InvalidOperationException(
+                "Merger.BorrowFromRightInternal: TryAppend of rotated separator failed. " +
+                "Variable-size separator workload exceeds page capacity; needs pre-flight check.");
 
         // 2. Promote rightNode's first key to parent separator.
         TKey newSep = rightNode.GetKey(0);
@@ -586,10 +650,31 @@ internal sealed class Merger<TKey, TValue>
             allChildren[lk + 2 + j] = rightNode.GetChildId(j);
         }
 
+        // M140 P3: pre-flight feasibility check — same bug class as MergeLeaves.
+        // Variable-size separator keys + child pointers can exceed page capacity
+        // even when both internal nodes are below the count-based threshold.
+        // Lost separator collapses an entire subtree from scan visibility.
+        // Internal cell layout per separator: keyBytes + 4 (childPointer) + slot.
+        int requiredInternalBytes = totalKeys * (PageLayout.SlotEntrySize + 4);
+        for (int i = 0; i < totalKeys; i++)
+            requiredInternalBytes += _nodeSerializer.KeySerializer.MeasureSize(allKeys[i]);
+        int usableInternalBytes = _pageManager.PageSize - PageLayout.FirstSlotOffset;
+        if (requiredInternalBytes > usableInternalBytes)
+        {
+            _pageManager.Unpin(leftId);
+            _pageManager.Unpin(rightId);
+            _pageManager.Unpin(parentId);
+            return;
+        }
+
         // Reinitialize leftNode to reclaim all orphaned cell bytes, then reinsert.
         leftNode.Initialize(allChildren[0]);
         for (int i = 0; i < totalKeys; i++)
-            leftNode.TryAppend(allKeys[i], allChildren[i + 1]);
+        {
+            if (!leftNode.TryAppend(allKeys[i], allChildren[i + 1]))
+                throw new InvalidOperationException(
+                    $"Merger.MergeInternals: TryAppend of separator {i}/{totalKeys} failed despite pre-flight feasibility check passing.");
+        }
 
         parent.RemoveSeparator(separatorIndex);
 

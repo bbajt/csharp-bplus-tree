@@ -1,6 +1,6 @@
-using BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Storage;
 
-namespace BPlusTree.Core.Nodes;
+namespace ByTech.BPlusTree.Core.Nodes;
 
 /// <summary>
 /// Factory for wrapping pinned frames as typed node objects.

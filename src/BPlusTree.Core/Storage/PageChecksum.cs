@@ -1,8 +1,8 @@
 using System.Buffers.Binary;
 using System.IO.Hashing;
-using BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Api;
 
-namespace BPlusTree.Core.Storage;
+namespace ByTech.BPlusTree.Core.Storage;
 
 /// <summary>
 /// CRC32 stamp and verify helpers for page-level corruption detection.

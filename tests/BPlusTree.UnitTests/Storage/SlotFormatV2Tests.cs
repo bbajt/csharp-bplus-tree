@@ -4,11 +4,11 @@ using System.IO;
 using System.IO.Hashing;
 using Xunit;
 using FluentAssertions;
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Nodes;
-using BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Storage;
 
-namespace BPlusTree.UnitTests.Storage;
+namespace ByTech.BPlusTree.Core.Tests.Storage;
 
 /// <summary>
 /// Phase 96 — Slot Format v2 (6-byte slot: 4-byte packed + Flags + reserved).

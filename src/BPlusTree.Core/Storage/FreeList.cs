@@ -1,7 +1,7 @@
-using BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Storage;
 using System.Buffers.Binary;
 
-namespace BPlusTree.Core.Storage;
+namespace ByTech.BPlusTree.Core.Storage;
 
 /// <summary>
 /// Intrusive free list. Recycled page ids are stored inside the first 8 bytes of

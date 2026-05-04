@@ -1,6 +1,6 @@
 using System.Buffers.Binary;
 using System.Text;
-using BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Nodes;
 
 namespace BPlusTree.Samples.EventLog;
 

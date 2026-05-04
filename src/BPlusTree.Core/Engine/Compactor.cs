@@ -1,10 +1,10 @@
 using System.Diagnostics;
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Nodes;
-using BPlusTree.Core.Storage;
-using BPlusTree.Core.Wal;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Wal;
 
-namespace BPlusTree.Core.Engine;
+namespace ByTech.BPlusTree.Core.Engine;
 
 /// <summary>
 /// Full tree rewrite compaction. Produces a minimal, tightly-packed copy of the tree.

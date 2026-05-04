@@ -1,7 +1,7 @@
-using BPlusTree.Core.Nodes;
-using BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Storage;
 
-namespace BPlusTree.Core.Engine;
+namespace ByTech.BPlusTree.Core.Engine;
 
 /// <summary>
 /// Handles all three B+ tree split cases:
@@ -96,7 +96,12 @@ internal sealed class Splitter<TKey, TValue>
         right.Initialize(left.GetChildId(midIndex));
 
         for (int i = midIndex + 1; i < n; i++)
-            right.TryAppend(left.GetKey(i), left.GetChildId(i));
+        {
+            if (!right.TryAppend(left.GetKey(i), left.GetChildId(i)))
+                throw new InvalidOperationException(
+                    $"Splitter internal-node split: TryAppend of separator {i} into fresh right node failed. " +
+                    "Variable-size separator key total exceeds page capacity.");
+        }
 
         for (int i = n - 1; i >= midIndex; i--)
             left.RemoveSeparator(i);
@@ -146,7 +151,29 @@ internal sealed class Splitter<TKey, TValue>
         var leftLeaf  = _nodeSerializer.AsLeaf(leftFrame);
 
         int n         = leftLeaf.Count;
-        int leftCount = (n + 1) / 2;   // left retains floor((n+1)/2) entries
+        if (n == 0)
+        {
+            // M93: callers should never request a split on an empty leaf. When this fires,
+            // TreeEngine.Insert's isLeafFull check disagreed with LeafNode.Count — a page-
+            // state consistency bug that needs its own follow-up investigation (see M94
+            // carry-forward in DESIGN-DEBT). Throw explicitly so the bug surfaces rather
+            // than degrading silently; the M93 Phase 2 instrumentation captures the stack.
+            throw new InvalidOperationException(
+                $"SplitLeafNode called on an empty leaf (page {leafPageId}). This indicates " +
+                "the caller's isLeafFull check disagreed with LeafNode.Count. Tracked as " +
+                "an M94+ carry-forward; the M93 n=1 fix addresses the primary symptom.");
+        }
+
+        // M93: classic split ratio leaves floor((n+1)/2) on the left, the rest on the right.
+        // The B+ tree invariant (MaxEntrySize ≤ pageSize/2) promises a leaf with ≥ 2 entries
+        // always splits non-empty on both sides. **But** the n == 1 case — a leaf with a
+        // single entry where HasSpaceFor returned false for the incoming insert — produces
+        // leftCount = 1 = n, so the right leaf receives no entries, and the copy-up at
+        // `rightLeaf.GetKey(0)` throws ArgumentOutOfRangeException (tracked through an
+        // entire cluster-mutation stack in M93-B repro). Defensive fix: move the single
+        // entry into the right leaf so the copy-up invariant holds and the caller's
+        // re-descend routes the new key into whichever half owns its comparison range.
+        int leftCount = n == 1 ? 0 : (n + 1) / 2;
 
         var rightFrame = _pageManager.AllocatePage(PageType.Leaf);
         _tx?.TrackAllocatedPage(rightFrame.PageId);                 // Category B — track new alloc
@@ -155,7 +182,13 @@ internal sealed class Splitter<TKey, TValue>
 
         // Copy right half from left into the new right leaf (in ascending key order).
         for (int i = leftCount; i < n; i++)
-            rightLeaf.TryInsert(leftLeaf.GetKey(i), leftLeaf.GetValue(i));
+        {
+            if (!rightLeaf.TryInsert(leftLeaf.GetKey(i), leftLeaf.GetValue(i)))
+                throw new InvalidOperationException(
+                    $"Splitter.SplitLeafNode: TryInsert of entry {i}/{n} into fresh right leaf failed. " +
+                    "Variable-size value workload may have entries that don't fit even into an empty leaf, " +
+                    "or count-based split point doesn't balance bytes.");
+        }
 
         // Remove right half from left (iterate from the end to keep earlier indices stable).
         for (int i = n - 1; i >= leftCount; i--)
@@ -261,31 +294,98 @@ internal sealed class Splitter<TKey, TValue>
         _tx?.CaptureBeforeImage(internalPageId, leftFrame.Data);    // Category A — capture before mutation
         var left      = _nodeSerializer.AsInternal(leftFrame);
 
-        int n        = left.KeyCount;
-        int midIndex = n / 2;
+        int n = left.KeyCount;
 
-        TKey promotedKey = left.GetKey(midIndex);
+        // M141 P3: byte-aware split-point selection + rebuild-from-scratch.
+        // The original code chose midIndex = n/2 (count-based) and then routed the
+        // pending separator with TryInsertSeparator (bool ignored). With variable-
+        // size separator keys (e.g. string), the receiving half could have
+        // insufficient bytes — the pending separator AND its child pointer would
+        // silently drop, orphaning a leaf from the tree's parent pointers while
+        // the leaf chain still included it. Root cause for DEBT-BPT-M140-residual.
+        //
+        // Fix: gather all separators + children, choose midIndex by BYTES so each
+        // half (including the pending entry on its target side) fits, then rebuild
+        // both halves from scratch (Initialize + TryAppend). Initialize reclaims
+        // any orphan bytes, so byte calc is exact.
+        int usable = _pageManager.PageSize - PageLayout.FirstSlotOffset;
+        var keys     = new TKey[n];
+        var children = new uint[n + 1];
+        children[0] = left.LeftmostChildId;
+        for (int i = 0; i < n; i++)
+        {
+            keys[i]         = left.GetKey(i);
+            children[i + 1] = left.GetChildId(i);
+        }
 
+        int pendingEntrySize = _nodeSerializer.KeySerializer.MeasureSize(pendingKey)
+                             + 4 + PageLayout.SlotEntrySize;
+        var sepSizes = new int[n];
+        for (int i = 0; i < n; i++)
+            sepSizes[i] = _nodeSerializer.KeySerializer.MeasureSize(keys[i])
+                        + 4 + PageLayout.SlotEntrySize;
+
+        int chosenMid = -1;
+        for (int delta = 0; delta <= n / 2 && chosenMid < 0; delta++)
+        {
+            int[] candidates = delta == 0 ? new[] { n / 2 } : new[] { n / 2 - delta, n / 2 + delta };
+            foreach (int candidate in candidates)
+            {
+                if (candidate < 1 || candidate > n - 1) continue;
+                int leftBytes = 0;  for (int j = 0; j < candidate; j++) leftBytes += sepSizes[j];
+                int rightBytes = 0; for (int j = candidate + 1; j < n; j++) rightBytes += sepSizes[j];
+                if (leftBytes > usable || rightBytes > usable) continue;
+                int cmp = _nodeSerializer.KeySerializer.Compare(pendingKey, keys[candidate]);
+                bool fits = cmp < 0
+                    ? leftBytes + pendingEntrySize <= usable
+                    : cmp > 0 && rightBytes + pendingEntrySize <= usable;
+                if (fits) { chosenMid = candidate; break; }
+            }
+        }
+        if (chosenMid < 0)
+            throw new InvalidOperationException(
+                $"SplitInternalAndInsert: cannot find a split point that accommodates pending separator " +
+                $"(pendingEntry={pendingEntrySize}B, usable={usable}B). Tree invariant violated.");
+
+        int midIndex = chosenMid;
+        TKey promotedKey = keys[midIndex];
+
+        // Allocate right and reinit both nodes from scratch to drop orphan bytes.
         var rightFrame = _pageManager.AllocatePage(PageType.Internal);
-        _tx?.TrackAllocatedPage(rightFrame.PageId);                 // Category B — track new alloc
-        var right      = _nodeSerializer.AsInternal(rightFrame);
-        // Right's leftmost child = child pointer immediately to the right of the promoted key.
-        right.Initialize(left.GetChildId(midIndex));
+        _tx?.TrackAllocatedPage(rightFrame.PageId);
+        var right = _nodeSerializer.AsInternal(rightFrame);
 
-        // Copy keys [midIndex+1 .. n-1] to the right node.
+        // Left = separators [0..midIndex-1] with children [0..midIndex].
+        left.Initialize(children[0]);
+        for (int i = 0; i < midIndex; i++)
+        {
+            if (!left.TryAppend(keys[i], children[i + 1]))
+                throw new InvalidOperationException(
+                    $"SplitInternalAndInsert: rebuild left TryAppend({i}) failed despite byte preflight.");
+        }
+        // Right = separators [midIndex+1..n-1] with children [midIndex+1..n], leftmost = children[midIndex+1].
+        right.Initialize(children[midIndex + 1]);
         for (int i = midIndex + 1; i < n; i++)
-            right.TryAppend(left.GetKey(i), left.GetChildId(i));
+        {
+            if (!right.TryAppend(keys[i], children[i + 1]))
+                throw new InvalidOperationException(
+                    $"SplitInternalAndInsert: rebuild right TryAppend({i}) failed despite byte preflight.");
+        }
 
-        // Remove keys [midIndex .. n-1] from left (mid is promoted, not kept in either child).
-        for (int i = n - 1; i >= midIndex; i--)
-            left.RemoveSeparator(i);
-
-        // Route the pending separator into the correct half based on key ordering.
+        // Insert pending separator into its target half.
         var ks = _nodeSerializer.KeySerializer;
         if (ks.Compare(pendingKey, promotedKey) < 0)
-            left.TryInsertSeparator(pendingKey, pendingRightChild);
+        {
+            if (!left.TryInsertSeparator(pendingKey, pendingRightChild))
+                throw new InvalidOperationException(
+                    "SplitInternalAndInsert: TryInsertSeparator into LEFT half failed despite byte preflight.");
+        }
         else
-            right.TryInsertSeparator(pendingKey, pendingRightChild);
+        {
+            if (!right.TryInsertSeparator(pendingKey, pendingRightChild))
+                throw new InvalidOperationException(
+                    "SplitInternalAndInsert: TryInsertSeparator into RIGHT half failed despite byte preflight.");
+        }
 
         if (_tx != null)
         {

@@ -1,6 +1,6 @@
-using BPlusTree.Core.Wal;
+using ByTech.BPlusTree.Core.Wal;
 
-namespace BPlusTree.Core.Engine;
+namespace ByTech.BPlusTree.Core.Engine;
 
 /// <summary>
 /// Non-generic internal interface for transaction context. Allows non-generic types

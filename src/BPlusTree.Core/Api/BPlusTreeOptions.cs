@@ -1,4 +1,4 @@
-namespace BPlusTree.Core.Api;
+namespace ByTech.BPlusTree.Core.Api;
 
 /// <summary>Configuration options for opening a BPlusTree. Call Validate() before use.</summary>
 public sealed class BPlusTreeOptions

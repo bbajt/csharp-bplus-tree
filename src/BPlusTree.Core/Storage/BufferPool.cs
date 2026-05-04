@@ -1,8 +1,8 @@
 using System;
 using System.Buffers.Binary;
-using BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Api;
 
-namespace BPlusTree.Core.Storage;
+namespace ByTech.BPlusTree.Core.Storage;
 
 /// <summary>
 /// Fixed-capacity buffer pool using the clock-hand (second-chance) LRU algorithm.

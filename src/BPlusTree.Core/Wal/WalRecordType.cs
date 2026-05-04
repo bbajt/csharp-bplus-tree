@@ -1,4 +1,4 @@
-namespace BPlusTree.Core.Wal;
+namespace ByTech.BPlusTree.Core.Wal;
 
 /// <summary>Identifies the type of a WAL log record.</summary>
 internal enum WalRecordType : byte

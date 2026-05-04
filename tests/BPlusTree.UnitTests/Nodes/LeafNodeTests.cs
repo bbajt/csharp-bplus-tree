@@ -1,9 +1,9 @@
-using BPlusTree.Core.Nodes;
-using BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Storage;
 using FluentAssertions;
 using Xunit;
 
-namespace BPlusTree.UnitTests.Nodes;
+namespace ByTech.BPlusTree.Core.Tests.Nodes;
 
 public class LeafNodeTests
 {

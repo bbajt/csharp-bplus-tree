@@ -1,8 +1,8 @@
 using System;
 using Xunit;
-using BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Storage;
 
-namespace BPlusTree.UnitTests.Storage;
+namespace ByTech.BPlusTree.Core.Tests.Storage;
 
 public class FrameTests
 {

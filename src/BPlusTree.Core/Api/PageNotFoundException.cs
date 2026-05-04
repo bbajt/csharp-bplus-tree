@@ -1,6 +1,6 @@
 using System;
 
-namespace BPlusTree.Core.Api;
+namespace ByTech.BPlusTree.Core.Api;
 
 /// <summary>
 /// Exception thrown when a page is not found in the storage file.

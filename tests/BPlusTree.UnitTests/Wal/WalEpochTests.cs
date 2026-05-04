@@ -1,12 +1,12 @@
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Engine;
-using BPlusTree.Core.Nodes;
-using BPlusTree.Core.Storage;
-using BPlusTree.Core.Wal;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Engine;
+using ByTech.BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Wal;
 using FluentAssertions;
 using Xunit;
 
-namespace BPlusTree.UnitTests.Wal;
+namespace ByTech.BPlusTree.Core.Tests.Wal;
 
 /// <summary>
 /// Phase 57 — WAL Epoch Header + Checkpoint/Transaction Mutex tests.

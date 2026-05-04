@@ -1,10 +1,10 @@
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Engine;
-using BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Engine;
+using ByTech.BPlusTree.Core.Nodes;
 using FluentAssertions;
 using Xunit;
 
-namespace BPlusTree.UnitTests.Integration;
+namespace ByTech.BPlusTree.Core.Tests.Integration;
 
 /// <summary>
 /// Verifies data integrity when Compact() runs concurrently with active writers.
@@ -43,7 +43,13 @@ public class CompactionConcurrentIntegrityTests : IDisposable
 
     // ── Test 1: all original surviving keys present after compaction ──────────
 
-    [Fact(Timeout = 120_000)]
+    // M97: 120s→240s. Under full-solution parallel load this stress test
+    // (50K seeds + 40K deletes + 4×30 tx + concurrent compact) was starved of
+    // CPU and timed out ~2/5 runs. The invariant under test (writers and
+    // compactor don't corrupt state) doesn't depend on wall-clock duration —
+    // only that the test eventually completes. 240s preserves "something is
+    // stuck" semantics under max contention.
+    [Fact(Timeout = 240_000)]
     public async Task Compact_WhileConcurrentWriters_AllOriginalKeysSurvive()
     {
         await Task.Run(() =>
@@ -120,7 +126,8 @@ public class CompactionConcurrentIntegrityTests : IDisposable
 
     // ── Test 2: full scan sorted and complete after compaction ────────────────
 
-    [Fact(Timeout = 120_000)]
+    // M97: 120s→240s under full-suite parallel load (see sibling test comment).
+    [Fact(Timeout = 240_000)]
     public async Task Compact_ThenFullScan_SortedAndComplete()
     {
         await Task.Run(() =>
@@ -184,7 +191,8 @@ public class CompactionConcurrentIntegrityTests : IDisposable
 
     // ── Test 3: compacted file smaller after heavy deletes ───────────────────
 
-    [Fact(Timeout = 60_000)]
+    // M97: 60s→180s under full-suite parallel load.
+    [Fact(Timeout = 180_000)]
     public async Task Compact_AfterHeavyDeletes_FileSizeReduced()
     {
         await Task.Run(() =>

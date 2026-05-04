@@ -1,12 +1,12 @@
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Engine;
-using BPlusTree.Core.Nodes;
-using BPlusTree.Core.Storage;
-using BPlusTree.Core.Wal;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Engine;
+using ByTech.BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Wal;
 using FluentAssertions;
 using Xunit;
 
-namespace BPlusTree.UnitTests.Engine;
+namespace ByTech.BPlusTree.Core.Tests.Engine;
 
 /// <summary>
 /// Phase 60 — Auto-commit checkpoint gate tests.
@@ -172,14 +172,24 @@ public class AutoCommitInterlockTests : IDisposable
         });
         compactThread.Start();
 
-        // Give the compact thread time to acquire the exclusive lock.
-        Thread.Sleep(50);
+        // Give the compact thread time to acquire the exclusive lock. M96 Phase 5:
+        // bumped from 50ms → 200ms because under full-solution parallel load the
+        // compact thread sometimes hadn't yet reached the lock-acquisition point by
+        // 50ms, letting the Delete below win the race. The test's INTENT is to prove
+        // that Delete serialises with Compact, which requires Compact to have the
+        // lock when Delete arrives — 200ms gives the scheduler a bigger window even
+        // under CPU contention. The threading invariant itself (shared/exclusive
+        // gates) is what's under test; the sleep is just the setup theatrics.
+        Thread.Sleep(200);
 
         // Auto-commit Delete — holds shared gate, serialises with Compact.
         engine.Delete(1000);
 
-        bool joined = compactThread.Join(millisecondsTimeout: 10_000);
-        joined.Should().BeTrue("Compact must complete within 10 seconds");
+        // M96 Phase 5: 10s → 30s. Compact on 2000 keys normally finishes in <1s, but
+        // under parallel contention the worker thread can be CPU-starved. 30s preserves
+        // the "something is stuck" failure mode without flaking on slow hosts.
+        bool joined = compactThread.Join(millisecondsTimeout: 30_000);
+        joined.Should().BeTrue("Compact must complete within 30 seconds");
         compactCompleted.Should().BeTrue();
 
         // Key 1000 must be absent — the delete completed and was not lost.

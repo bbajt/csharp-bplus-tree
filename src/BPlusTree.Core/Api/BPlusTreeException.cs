@@ -1,4 +1,4 @@
-namespace BPlusTree.Core.Api;
+namespace ByTech.BPlusTree.Core.Api;
 
 /// <summary>Base class for all BPlusTree library exceptions.</summary>
 public class BPlusTreeException : Exception

@@ -1,9 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Api;
 
-namespace BPlusTree.Core.Engine;
+namespace ByTech.BPlusTree.Core.Engine;
 
 /// <summary>
 /// Point-in-time read-only snapshot. Created by

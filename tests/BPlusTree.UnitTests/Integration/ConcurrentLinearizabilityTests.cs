@@ -1,10 +1,10 @@
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Engine;
-using BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Engine;
+using ByTech.BPlusTree.Core.Nodes;
 using FluentAssertions;
 using Xunit;
 
-namespace BPlusTree.UnitTests.Integration;
+namespace ByTech.BPlusTree.Core.Tests.Integration;
 
 /// <summary>
 /// Verifies that after N concurrent transactions (each owning a disjoint key

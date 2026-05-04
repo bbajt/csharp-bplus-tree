@@ -1,9 +1,9 @@
 using BenchmarkDotNet.Attributes;
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Engine;
-using BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Engine;
+using ByTech.BPlusTree.Core.Nodes;
 
-namespace BPlusTree.Benchmarks;
+namespace ByTech.BPlusTree.Core.Benchmarks;
 
 // ── Phase 101a: Auto-commit Put ────────────────────────────────────────────────
 // Measures tree.Put(key, largeValue) on the in-place fast path (no snapshot active).

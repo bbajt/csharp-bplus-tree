@@ -1,6 +1,6 @@
 using System.Diagnostics;
-using BPlusTree.Core.Api;
-using BPlusTree.Core.Nodes;
+using ByTech.BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Nodes;
 
 namespace BPlusTree.Samples.GroupCommitThroughput;
 

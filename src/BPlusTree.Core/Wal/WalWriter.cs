@@ -1,8 +1,8 @@
 using System.Buffers.Binary;
 using System.IO.Hashing;
-using BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Api;
 
-namespace BPlusTree.Core.Wal;
+namespace ByTech.BPlusTree.Core.Wal;
 
 /// <summary>
 /// Append-only WAL writer. Thread-safe. Buffers records in memory; Flush() writes

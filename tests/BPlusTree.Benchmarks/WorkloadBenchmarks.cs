@@ -1,7 +1,7 @@
 using BenchmarkDotNet.Attributes;
-using BPlusTree.Core.Api;
+using ByTech.BPlusTree.Core.Api;
 
-namespace BPlusTree.Benchmarks;
+namespace ByTech.BPlusTree.Core.Benchmarks;
 
 // ── Online compaction throughput benchmarks ────────────────────────────────────
 // Quantifies the write-throughput cost of running concurrent compaction.

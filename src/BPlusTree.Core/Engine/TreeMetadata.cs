@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
-using BPlusTree.Core.Storage;
+using ByTech.BPlusTree.Core.Storage;
 
-namespace BPlusTree.Core.Engine;
+namespace ByTech.BPlusTree.Core.Engine;
 
 /// <summary>
 /// Reads and writes the meta page (PageId 0).
